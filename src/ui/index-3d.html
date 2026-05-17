@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InfraNodus 3D Graph Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: oklch(0.13 0.02 270);
+      --bg-secondary: oklch(0.16 0.02 270);
+      --bg-surface: oklch(0.19 0.015 270);
+      --text-primary: oklch(0.92 0.01 270);
+      --text-secondary: oklch(0.62 0.02 270);
+      --text-muted: oklch(0.45 0.02 270);
+      --accent: oklch(0.63 0.24 275);
+      --accent-dim: oklch(0.63 0.24 275 / 0.15);
+      --border: oklch(1 0 0 / 0.06);
+      --radius: 8px;
+      --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Header */
+    header {
+      height: 44px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 24px;
+      height: 24px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--bg-primary);
+    }
+
+    #graph-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    #graph-stats {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Main Layout */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      overflow: hidden;
+    }
+
+    /* Graph Container */
+    #graph-container {
+      position: relative;
+      background: #0f1117;
+      overflow: hidden;
+    }
+
+    #graph-3d {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Dimension Toggle */
+    #dim-toggle {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+      height: 32px;
+    }
+
+    #dim-toggle button {
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      height: 26px;
+    }
+
+    #dim-toggle button:hover {
+      color: var(--text-secondary);
+    }
+
+    #dim-toggle button.active {
+      background: var(--accent);
+      color: var(--bg-primary);
+    }
+
+    /* Welcome State */
+    #welcome {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+      background: var(--bg-primary);
+    }
+
+    #welcome.hidden {
+      display: none;
+    }
+
+    .welcome-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      background: var(--accent-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+
+    .welcome-message {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    /* Loading State */
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+      background: var(--bg-primary);
+    }
+
+    #loading.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--bg-surface);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Tooltip */
+    #tooltip {
+      position: absolute;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      max-width: 280px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    #tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .tooltip-stat {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .tooltip-stat-label {
+      color: var(--text-muted);
+    }
+
+    /* Sidebar */
+    aside {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    aside::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    aside::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    aside::-webkit-scrollbar-thumb {
+      background: var(--bg-surface);
+      border-radius: 4px;
+    }
+
+    aside::-webkit-scrollbar-thumb:hover {
+      background: oklch(0.22 0.015 270);
+    }
+
+    .sidebar-section {
+      padding: 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* Stats Grid */
+    #stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .stat-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Cluster List */
+    #cluster-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cluster-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .cluster-item:hover {
+      background: var(--bg-primary);
+      border-color: var(--accent-dim);
+    }
+
+    .cluster-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .cluster-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cluster-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cluster-size {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Gap List */
+    #gap-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .gap-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .gap-item:hover {
+      background: var(--bg-primary);
+      border-color: var(--accent-dim);
+    }
+
+    .gap-nodes {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .gap-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gap-arrow {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .gap-score {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* Empty States */
+    .empty-state {
+      padding: 16px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        display: none;
+      }
+
+      #dim-toggle {
+        top: 8px;
+        right: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <div class="logo">IN</div>
+        <h1 id="graph-title">Knowledge Graph</h1>
+      </div>
+      <div id="graph-stats">0 nodes · 0 edges</div>
+    </header>
+
+    <main>
+      <div id="graph-container">
+        <div id="graph-3d"></div>
+        
+        <div id="dim-toggle">
+          <button id="btn-2d">2D</button>
+          <button id="btn-3d" class="active">3D</button>
+        </div>
+
+        <div id="welcome">
+          <div class="welcome-icon">🌐</div>
+          <div class="welcome-message">
+            Waiting for graph data...
+          </div>
+        </div>
+
+        <div id="loading" class="hidden">
+          <div class="spinner"></div>
+          <div class="loading-text">Rendering graph...</div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="sidebar-section">
+          <h2 class="section-title">Overview</h2>
+          <div id="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Nodes</div>
+              <div class="stat-value" id="stat-nodes">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Edges</div>
+              <div class="stat-value" id="stat-edges">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Clusters</div>
+              <div class="stat-value" id="stat-clusters">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Density</div>
+              <div class="stat-value" id="stat-density">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h2 class="section-title">Topic Clusters</h2>
+          <ul id="cluster-list">
+            <li class="empty-state">No clusters detected</li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <h2 class="section-title">Structural Gaps</h2>
+          <ul id="gap-list">
+            <li class="empty-state">No gaps detected</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+
+    <div id="tooltip">
+      <div class="tooltip-label"></div>
+      <div class="tooltip-stats"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./main-3d.ts"></script>
+</body>
+</html>

@@ -10,6 +10,15 @@ const root = join(__dirname, "../..");
 function loadUiHtml(): string {
   const mode = getUiMode();
 
+  // 3D: Three.js force-directed 3D graph with bloom and orbit controls
+  if (mode === "3d") {
+    try {
+      return readFileSync(join(root, "dist/ui-3d/index.html"), "utf-8");
+    } catch {
+      // fall through to sigma
+    }
+  }
+
   // Sigma (v2): Sigma.js + graphology force-directed graph
   if (mode === "sigma") {
     try {
@@ -28,8 +37,8 @@ function loadUiHtml(): string {
     }
   }
 
-  // Try both in order
-  for (const path of ["dist/ui/index.html", "dist/mcp-app.html"]) {
+  // Try all in order
+  for (const path of ["dist/ui-3d/index.html", "dist/ui/index.html", "dist/mcp-app.html"]) {
     try { return readFileSync(join(root, path), "utf-8"); } catch {}
   }
 
@@ -41,7 +50,7 @@ export function registerGraphResource(server: McpServer) {
     "graph-viewer",
     VIEW_URI,
     {
-      description: "Interactive knowledge graph visualization. Mode controlled by set_ui_mode tool.",
+      description: "Interactive knowledge graph visualization. Modes: sigma (2D), 3d (Three.js), canvas. Controlled by set_ui_mode tool.",
       mimeType: "text/html;profile=mcp-app",
     },
     async () => ({
@@ -58,5 +67,5 @@ function getFallbackHtml(): string {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>InfraNodus Graph</title>
 <style>body{margin:0;font-family:system-ui;background:#0a0e1a;color:#e8eaf0;display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;opacity:0.6}</style>
-</head><body>Awaiting graph data…</body></html>`;
+</head><body>Awaiting graph data\u2026</body></html>`;
 }

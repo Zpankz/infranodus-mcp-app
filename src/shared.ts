@@ -3,9 +3,12 @@
 export const VIEW_URI = "ui://infranodus/graph-viewer";
 
 // ── UI mode toggle ────────────────────────────────────────────────────────
-export type UiMode = "sigma" | "canvas";
+export type UiMode = "sigma" | "canvas" | "3d";
 
-let _uiMode: UiMode = (process.env.UI_MODE === "canvas" ? "canvas" : "sigma");
+let _uiMode: UiMode = (
+  process.env.UI_MODE === "canvas" ? "canvas" :
+  process.env.UI_MODE === "3d" ? "3d" : "sigma"
+);
 
 export function getUiMode(): UiMode { return _uiMode; }
 export function setUiMode(mode: UiMode) { _uiMode = mode; }

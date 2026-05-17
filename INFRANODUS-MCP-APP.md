@@ -83,20 +83,22 @@ Obtain from: https://infranodus.com/api-access
 
 ## UI Modes
 
-Two graph viewer UIs are bundled. Switch at runtime via the `set_ui_mode` tool
-or set the `UI_MODE` env var (`sigma` | `canvas`).
+Three graph viewer UIs are bundled. Switch at runtime via the `set_ui_mode` tool
+or set the `UI_MODE` env var (`sigma` | `canvas` | `3d`).
 
-| Mode | Engine | Features |
-|---|---|---|
-| `sigma` (default) | Sigma.js + graphology ForceAtlas2 | Lightweight, fast, sidebar stats grid, cluster list, gap list, hover tooltips |
-| `canvas` | Custom canvas force-directed | Topology/Atlas visual directions, glow halos, glassmorphism panels, 10-color oklch palette |
+| Mode | Engine | Bundle (gzip) | Features |
+|---|---|---|---|
+| `sigma` (default) | Sigma.js + graphology ForceAtlas2 | 47 KB | Lightweight, fast, sidebar stats grid, cluster list, gap list, hover tooltips |
+| `3d` | 3d-force-graph + Three.js | 366 KB | 3D/2D toggle, orbit controls, glow bloom effects, node click-to-focus, cluster highlighting |
+| `canvas` | Custom canvas force-directed | 54 KB | Topology/Atlas visual directions, glow halos, glassmorphism panels, 10-color oklch palette |
 
 ## Build Pipeline
 
 ```bash
 npm install
 npm run build:ui    # Vite → dist/ui/index.html (sigma) + cp mcp-app.html → dist/mcp-app.html (canvas)
-npm run build       # UI + TypeScript → dist/
+npm run build:3d    # Vite → dist/ui-3d/index-3d.html (3d-force-graph + Three.js)
+npm run build       # All UI builds + TypeScript type-check
 npm run dev         # Development with tsx
 ```
 
@@ -106,26 +108,33 @@ npm run dev         # Development with tsx
 infranodus-mcp-app/
 ├── package.json
 ├── tsconfig.json
-├── vite.config.ts
+├── vite.config.ts           (Sigma UI build config)
+├── vite.config.3d.ts        (3D UI build config)
 ├── INFRANODUS-MCP-APP.md    (this file)
 ├── src/
 │   ├── server.ts            (MCP server entry)
+│   ├── shared.ts            (State: graphStore, UiMode, VIEW_URI)
 │   ├── lib/
 │   │   └── api.ts           (InfraNodus REST client)
 │   ├── tools/
 │   │   ├── graph.ts         (graph generation/retrieval tools)
 │   │   ├── analysis.ts      (AI analysis, gaps, comparison)
-│   │   └── search.ts        (search, Google import)
+│   │   ├── search.ts        (search, Google import)
+│   │   └── settings.ts      (set_ui_mode, get_ui_mode)
 │   ├── resources/
-│   │   └── graph-ui.ts      (UIResource registration)
+│   │   └── graph-ui.ts      (UIResource — serves sigma/3d/canvas based on mode)
 │   └── ui/
-│       ├── index.html        (App shell)
+│       ├── index.html        (Sigma app shell)
 │       ├── main.ts           (Sigma.js renderer + MCP messaging)
+│       ├── index-3d.html     (3D app shell)
+│       ├── main-3d.ts        (3d-force-graph + Three.js renderer)
 │       └── tsconfig.json     (Browser TS config)
 └── dist/
     ├── ui/
-    │   └── index.html        (Bundled single-file app)
-    └── *.js                   (Compiled server)
+    │   └── index.html        (Bundled sigma single-file app)
+    ├── ui-3d/
+    │   └── index-3d.html     (Bundled 3D single-file app)
+    └── mcp-app.html           (Canvas UI copy)
 ```
 
 ## Patterns Applied (from patterns.html)
