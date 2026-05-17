@@ -1144,12 +1144,17 @@ function renderWelcome() {
     <div class="welcome fade-in">
       <div class="bg-graph"></div>
       <h1>Turn text into a knowledge graph</h1>
-      <p>InfraNodus analyzes text to reveal topical clusters, structural gaps, and key bridging concepts. Use the <code style="font-family:var(--font-mono);color:var(--in-accent)">analyze-text</code> tool to get started.</p>
-      <div class="actions">
-        <button class="btn btn-primary" onclick="document.querySelector('.query-input input')?.focus()">Get started</button>
+      <p>Paste or type text below to analyze it with InfraNodus. The graph will reveal topical clusters, structural gaps, and key bridging concepts.</p>
+      <div style="width:100%;max-width:560px;z-index:1;margin-top:20px">
+        <textarea id="welcomeText" rows="6" placeholder="Paste your text here\u2026 or click \u2018Try sample\u2019 to see a demo graph." style="width:100%;padding:12px 14px;background:var(--host-bg-2);color:var(--host-fg);border:1px solid var(--host-border);border-radius:var(--r-md);font-family:var(--font-ui);font-size:13px;resize:vertical;outline:none;line-height:1.5"></textarea>
       </div>
-      <div style="margin-top:32px;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;z-index:1">
-        ${['analyze-text → graph', 'graph-ai-advice → insights', 'semantic-search → find'].map(t =>
+      <div class="actions">
+        <button class="btn" onclick="loadSample()">Try sample</button>
+        <button class="btn btn-primary" onclick="analyzeWelcome()">Analyze text</button>
+      </div>
+      <div id="welcomeStatus" style="margin-top:12px;font-family:var(--font-mono);font-size:12px;color:var(--host-fg-3);z-index:1"></div>
+      <div style="margin-top:24px;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;z-index:1">
+        ${['analyze-text \u2192 graph', 'graph-ai-advice \u2192 insights', 'semantic-search \u2192 find'].map(t =>
           `<div style="font-family:var(--font-mono);font-size:11px;color:var(--host-fg-3);padding:6px 12px;border:1px solid var(--host-border-2);border-radius:var(--r-md)">${t}</div>`
         ).join('')}
       </div>
@@ -1441,6 +1446,39 @@ window.runSuggest = async (q) => {
   try {
     await app.callServerTool({ name: 'graph-ai-advice', arguments: { prompt: q } });
   } catch(e) { console.warn('callServerTool failed:', e); }
+};
+
+const SAMPLE_TEXT = `Knowledge graphs represent structured information as networks of interconnected concepts. Each node in a knowledge graph represents an entity or concept, while edges represent relationships between them. This approach enables powerful reasoning over complex domains.
+
+Large language models like Claude can be enhanced with graph-based retrieval augmented generation (GraphRAG). By combining the pattern recognition capabilities of neural networks with the structured reasoning of knowledge graphs, we can build systems that are both creative and precise.
+
+Network science provides the mathematical framework for analyzing these structures. Metrics like betweenness centrality identify bridging concepts that connect different topic clusters. Modularity analysis reveals natural community structures within the graph.
+
+Discourse analysis examines how ideas flow through text, identifying narrative frames, rhetorical patterns, and the voice of different perspectives. When combined with network visualization, discourse analysis reveals the structural gaps between topic clusters — areas where new connections could generate novel insights.
+
+Structural gaps between communities in a knowledge graph are particularly valuable. These gaps represent unexplored connections between established topic clusters. Bridging these gaps often leads to the most creative and innovative research questions.`;
+
+window.loadSample = () => {
+  const ta = document.getElementById('welcomeText');
+  if (ta) ta.value = SAMPLE_TEXT;
+};
+
+window.analyzeWelcome = async () => {
+  const ta = document.getElementById('welcomeText');
+  const text = ta?.value?.trim();
+  if (!text) {
+    const st = document.getElementById('welcomeStatus');
+    if (st) st.textContent = 'Please paste some text first, or click \u201cTry sample\u201d.';
+    return;
+  }
+  const st = document.getElementById('welcomeStatus');
+  if (st) st.textContent = 'Analyzing\u2026 building knowledge graph';
+  try {
+    await app.callServerTool({ name: 'analyze-text', arguments: { text, name: 'MCP Analysis' } });
+  } catch(e) {
+    console.warn('analyze-text call failed:', e);
+    if (st) st.textContent = 'Analysis request sent. Waiting for result\u2026';
+  }
 };
 
 // ============================================================
