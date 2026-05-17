@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InfraNodus Graph Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0a0e1a;
+      --bg-secondary: #141824;
+      --bg-surface: #1c2030;
+      --text-primary: #e8eaf0;
+      --text-secondary: #8b90a0;
+      --text-muted: #5a5f70;
+      --accent: #6366f1;
+      --accent-dim: rgba(99, 102, 241, 0.15);
+      --border: rgba(255, 255, 255, 0.06);
+      --radius: 8px;
+      --font: var(--font-sans, 'Inter', -apple-system, system-ui, sans-serif);
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--color-background-primary, var(--bg-primary));
+      color: var(--color-text-primary, var(--text-primary));
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      grid-template-rows: 48px 1fr;
+      height: 100vh;
+      gap: 0;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      background: var(--color-background-secondary, var(--bg-secondary));
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    header .stats {
+      font-size: 12px;
+      color: var(--color-text-secondary, var(--text-secondary));
+      margin-left: auto;
+    }
+
+    #graph-container {
+      position: relative;
+      overflow: hidden;
+      background: var(--color-background-primary, var(--bg-primary));
+    }
+
+    #sigma-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    aside {
+      background: var(--color-background-secondary, var(--bg-secondary));
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+      font-size: 13px;
+    }
+
+    aside h2 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--color-text-secondary, var(--text-secondary));
+      margin-bottom: 8px;
+    }
+
+    .cluster-list {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    .cluster-list li {
+      padding: 6px 8px;
+      border-radius: var(--border-radius-sm, 4px);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .cluster-list li:hover {
+      background: var(--accent-dim);
+    }
+
+    .cluster-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cluster-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cluster-count {
+      font-size: 11px;
+      color: var(--color-text-muted, var(--text-muted));
+    }
+
+    .gap-list {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    .gap-list li {
+      padding: 8px;
+      border-radius: var(--border-radius-sm, 4px);
+      margin-bottom: 4px;
+      background: var(--color-background-surface, var(--bg-surface));
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .gap-arrow {
+      color: var(--accent);
+      margin: 0 4px;
+    }
+
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+    }
+
+    .loading-state .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-state p {
+      font-size: 13px;
+      color: var(--color-text-secondary, var(--text-secondary));
+    }
+
+    .tooltip {
+      position: absolute;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.15s;
+      max-width: 200px;
+    }
+
+    .tooltip.visible { opacity: 1; }
+    .tooltip .node-name { font-weight: 600; }
+    .tooltip .node-stats { color: var(--text-secondary); margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1 id="graph-title">InfraNodus</h1>
+      <span class="stats" id="graph-stats"></span>
+    </header>
+    <div id="graph-container">
+      <div class="loading-state" id="loading">
+        <div class="spinner"></div>
+        <p>Awaiting graph data...</p>
+      </div>
+      <div id="sigma-canvas"></div>
+    </div>
+    <aside id="sidebar">
+      <h2>Topic Clusters</h2>
+      <ul class="cluster-list" id="cluster-list"></ul>
+      <h2>Structural Gaps</h2>
+      <ul class="gap-list" id="gap-list"></ul>
+    </aside>
+  </div>
+  <div class="tooltip" id="tooltip">
+    <div class="node-name"></div>
+    <div class="node-stats"></div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

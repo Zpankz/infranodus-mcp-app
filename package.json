@@ -1,0 +1,32 @@
+{
+  "name": "@infranodus/mcp-app",
+  "version": "0.1.0",
+  "description": "InfraNodus MCP App — Interactive knowledge graph visualization",
+  "type": "module",
+  "scripts": {
+    "build:ui": "vite build --config vite.config.ts",
+    "build:server": "tsc -p tsconfig.json",
+    "build": "npm run build:ui && npm run build:server",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@modelcontextprotocol/ext-apps": "latest",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "sigma": "^3.0.0",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.0",
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.0.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
