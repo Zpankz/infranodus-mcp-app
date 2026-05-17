@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import cors from "cors";
 import { createServer } from "./server.js";
 
-const port = parseInt(process.env.PORT ?? "3001", 10);
+const port = parseInt(process.env.PORT ?? "8000", 10);
 
 async function main() {
   if (process.argv.includes("--stdio")) {

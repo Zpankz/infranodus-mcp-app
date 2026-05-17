@@ -10,7 +10,9 @@ const DEFAULT_API_URL = "https://infranodus.com";
 export function createServer(): McpServer {
   const server = new McpServer({ name: "infranodus-mcp-app", version: "1.0.0" });
 
-  registerAppResource(server, VIEW_URI, async () => {
+  registerAppResource(server, "InfraNodus View", VIEW_URI, {
+    description: "Interactive InfraNodus knowledge graph view",
+  }, async () => {
     const html = fs.readFileSync(path.resolve(import.meta.dirname, "dist/mcp-app.html"), "utf-8");
     return { contents: [{ uri: VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: html,
       _meta: { ui: { csp: { connectDomains: ["https://infranodus.com", "https://*.infranodus.com"] } } }
