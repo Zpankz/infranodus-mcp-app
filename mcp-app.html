@@ -479,7 +479,7 @@ body {
 </div>
 
 <script type="module">
-import { App, applyDocumentTheme, applyHostStyleVariables } from "@modelcontextprotocol/ext-apps";
+import { App, applyDocumentTheme, applyHostStyleVariables, applyHostFonts } from "@modelcontextprotocol/ext-apps";
 
 // ============================================================
 // Constants
@@ -522,11 +522,34 @@ let state = {
 };
 
 // ============================================================
-// MCP App Lifecycle
+// MCP App Lifecycle (per apps/2026-01-26 spec)
+// ALL handlers registered BEFORE app.connect()
 // ============================================================
-const app = new App({ name: 'infranodus', version: '1.0.0' });
+const app = new App({ name: 'infranodus', version: '1.1.0' });
 const el = document.getElementById('app');
 
+// Handler: tool input (fired when the LLM generates tool arguments)
+app.ontoolinput = (notification) => {
+  try {
+    const args = notification?.params?.arguments;
+    if (args?.text) {
+      // Show loading state while analyze-text processes
+      el.innerHTML = '<div class="welcome"><h1 style="font-family:var(--font-mono)">Analyzing…</h1><p>Building knowledge graph from ' + (args.text?.length || 0) + ' characters</p></div>';
+    }
+  } catch(e) { console.error('toolinput error', e); }
+};
+
+// Handler: partial streaming input (progressive rendering during LLM generation)
+app.ontoolinputpartial = (notification) => {
+  try {
+    const args = notification?.params?.arguments;
+    if (args?.text && !state.graphData) {
+      el.innerHTML = '<div class="welcome"><h1 style="font-family:var(--font-mono)">Preparing…</h1><p>Receiving input (' + (args.text?.length || 0) + ' chars so far)</p></div>';
+    }
+  } catch(e) { /* partial input errors are non-critical */ }
+};
+
+// Handler: tool result (fired with the final result data)
 app.ontoolresult = (notification) => {
   try {
     const sc = notification?.params?.result?.structuredContent;
@@ -536,19 +559,42 @@ app.ontoolresult = (notification) => {
       buildPhysicsGraph(result);
       render();
     } else if (result?.advice) {
-      // AI advice result — show in sidebar
       state.aiAdvice = result.advice;
+      render();
+    } else if (result?.results && result?.query) {
+      // Semantic search results
+      state.searchResults = result;
+      render();
+    } else if (result?.graphs) {
+      // List graphs result
+      state.graphList = result.graphs;
       render();
     }
   } catch(e) { console.error('toolresult parse error', e); }
 };
 
+// Handler: host context changes (theme, styles, fonts, safe area)
 app.onhostcontextchanged = (notification) => {
   const ctx = notification?.params;
   if (ctx?.theme) applyDocumentTheme(ctx.theme);
   if (ctx?.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
+  if (ctx?.styles?.css?.fonts) applyHostFonts(ctx.styles.css.fonts);
+  if (ctx?.safeAreaInsets) {
+    const { top = 0, right = 0, bottom = 0, left = 0 } = ctx.safeAreaInsets;
+    document.body.style.padding = `${top}px ${right}px ${bottom}px ${left}px`;
+  }
+  if (ctx?.displayMode) {
+    document.body.classList.toggle('fullscreen', ctx.displayMode === 'fullscreen');
+  }
 };
 
+// Handler: teardown (cleanup when host removes the app)
+app.onteardown = async () => {
+  simRunning = false; // stop physics
+  return {};
+};
+
+// Connect AFTER all handlers are registered
 try {
   await app.connect();
 } catch(e) {
