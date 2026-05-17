@@ -10,7 +10,9 @@ const DEFAULT_API_URL = "https://infranodus.com";
 export function createServer(): McpServer {
   const server = new McpServer({ name: "infranodus-mcp-app", version: "1.0.0" });
 
-  registerAppResource(server, VIEW_URI, async () => {
+  registerAppResource(server, "InfraNodus View", VIEW_URI, {
+    description: "Interactive InfraNodus knowledge graph view",
+  }, async () => {
     const html = fs.readFileSync(path.resolve(import.meta.dirname, "dist/mcp-app.html"), "utf-8");
     return { contents: [{ uri: VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: html,
       _meta: { ui: { csp: { connectDomains: ["https://infranodus.com", "https://*.infranodus.com"] } } }
@@ -161,6 +163,203 @@ export function createServer(): McpServer {
       return {
         structuredContent: { jsonrpc: "2.0", result: { query, results, count: results.length } },
         content: [{ type: "text" as const, text: `Search "${query}": ${results.length} results\n` + results.slice(0,5).map((r: any, i: number) => `${i+1}. ${r.content||r.text||"?"}`).join("\n") }],
+      };
+    } catch (err: any) {
+      return { isError: true, content: [{ type: "text" as const, text: `Error: ${err.message}` }] };
+    }
+  });
+
+  // ── compose-query: natural language → tool call plan ───────────────────
+  registerAppTool(server, "compose-query", {
+    description: "Compile a natural language query into a structured plan of InfraNodus tool calls to execute.",
+    inputSchema: {
+      query: z.string().describe("Natural language query to compile into a tool plan"),
+      graph_context: z.string().optional().describe("Optional graph/context name to scope the query"),
+    },
+    _meta: { ui: { resourceUri: VIEW_URI } },
+  }, async ({ query, graph_context }) => {
+    const q = query.toLowerCase();
+    const steps: Array<{ tool: string; arguments: Record<string, unknown>; reason: string }> = [];
+
+    // Keyword-based compilation heuristics
+    const wantsAnalysis = /analyz|graph|cluster|map|visuali|knowledge|topic|concept/.test(q);
+    const wantsGaps = /gap|bridge|missing|blind spot|unexplored/.test(q);
+    const wantsSummary = /summar|overview|tldr|explain|describe/.test(q);
+    const wantsQuestions = /question|research|inquir|ask/.test(q);
+    const wantsSearch = /search|find|look.*for|related|similar/.test(q);
+    const wantsList = /list.*graph|my graph|saved graph|all graph|show.*graph/.test(q);
+    const wantsConnections = /connect|relat|link|between/.test(q);
+
+    // Extract text content if query contains "text:" or quoted content
+    const textMatch = query.match(/text:\s*["']([^"']+)["']/i) || query.match(/["']([^"']{20,})["']/i);
+    const extractedText = textMatch?.[1];
+
+    if (wantsList) {
+      steps.push({
+        tool: "list-graphs",
+        arguments: {},
+        reason: "List available saved graphs",
+      });
+    }
+
+    if (wantsAnalysis && extractedText) {
+      steps.push({
+        tool: "analyze-text",
+        arguments: {
+          text: extractedText,
+          ...(graph_context ? { name: graph_context } : {}),
+        },
+        reason: "Analyze the provided text to generate a knowledge graph",
+      });
+    } else if (wantsAnalysis) {
+      steps.push({
+        tool: "analyze-text",
+        arguments: {
+          text: "(provide text to analyze)",
+          ...(graph_context ? { name: graph_context } : {}),
+        },
+        reason: "Text analysis requested — provide text content to proceed",
+      });
+    }
+
+    if (wantsSearch) {
+      const searchQuery = query.replace(/search|find|look.*for|related|similar/gi, "").trim();
+      steps.push({
+        tool: "semantic-search",
+        arguments: {
+          query: searchQuery || query,
+          text: extractedText || "(provide text to search within)",
+        },
+        reason: "Semantic search for relevant statements",
+      });
+    }
+
+    if (wantsGaps) {
+      steps.push({
+        tool: "graph-ai-advice",
+        arguments: {
+          prompt: query,
+          mode: "gaps" as const,
+          ...(graph_context ? { prompt_context: graph_context } : {}),
+        },
+        reason: "Identify structural gaps and blind spots in the knowledge graph",
+      });
+    }
+
+    if (wantsSummary) {
+      steps.push({
+        tool: "graph-ai-advice",
+        arguments: {
+          prompt: query,
+          mode: "summary" as const,
+          ...(graph_context ? { prompt_context: graph_context } : {}),
+        },
+        reason: "Generate a summary of the graph content",
+      });
+    }
+
+    if (wantsQuestions) {
+      steps.push({
+        tool: "graph-ai-advice",
+        arguments: {
+          prompt: query,
+          mode: "questions" as const,
+          ...(graph_context ? { prompt_context: graph_context } : {}),
+        },
+        reason: "Generate research questions from the graph structure",
+      });
+    }
+
+    if (wantsConnections && !wantsGaps) {
+      steps.push({
+        tool: "graph-ai-advice",
+        arguments: {
+          prompt: query,
+          mode: "connections" as const,
+          ...(graph_context ? { prompt_context: graph_context } : {}),
+        },
+        reason: "Explore connections between concepts in the graph",
+      });
+    }
+
+    // Fallback: if no keywords matched, default to a summary
+    if (steps.length === 0) {
+      steps.push({
+        tool: "graph-ai-advice",
+        arguments: {
+          prompt: query,
+          mode: "response" as const,
+          ...(graph_context ? { prompt_context: graph_context } : {}),
+        },
+        reason: "General query — using AI advice to respond",
+      });
+    }
+
+    const plan = {
+      query,
+      graphContext: graph_context || null,
+      steps,
+      stepCount: steps.length,
+    };
+
+    const planText = steps.map((s, i) =>
+      `${i + 1}. ${s.tool} — ${s.reason}`
+    ).join("\n");
+
+    return {
+      structuredContent: { jsonrpc: "2.0" as const, result: plan },
+      content: [{
+        type: "text" as const,
+        text: `Query plan (${steps.length} step${steps.length === 1 ? "" : "s"}):\n${planText}`,
+      }],
+    };
+  });
+
+  // ── list-graphs: fetch saved graphs from InfraNodus ────────────────────
+  registerAppTool(server, "list-graphs", {
+    description: "List available saved knowledge graphs from InfraNodus.",
+    inputSchema: {
+      api_key: z.string().optional().describe("InfraNodus API key"),
+      api_url: z.string().optional().describe("InfraNodus API base URL"),
+    },
+    _meta: { ui: { resourceUri: VIEW_URI } },
+  }, async ({ api_key, api_url }) => {
+    const apiKey = api_key || process.env.INFRANODUS_API_KEY || "";
+    const apiUrl = api_url || process.env.INFRANODUS_API_URL || DEFAULT_API_URL;
+    if (!apiKey) {
+      return { isError: true, content: [{ type: "text" as const, text: "Error: Set INFRANODUS_API_KEY or pass api_key." }] };
+    }
+    try {
+      const resp = await fetch(`${apiUrl}/api/v1/contexts`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+      if (!resp.ok) throw new Error(`API ${resp.status}: ${resp.statusText}`);
+      const data = await resp.json();
+
+      // The API may return contexts under different shapes
+      const contexts: any[] = data?.contexts || data?.data?.contexts || data?.data || [];
+      const graphs = contexts.map((ctx: any) => ({
+        id: ctx.id || ctx._id,
+        name: ctx.name || ctx.title || ctx.contextName,
+        nodeCount: ctx.nodeCount ?? ctx.node_count ?? null,
+        edgeCount: ctx.edgeCount ?? ctx.edge_count ?? null,
+        createdAt: ctx.createdAt || ctx.created_at || null,
+        updatedAt: ctx.updatedAt || ctx.updated_at || null,
+      }));
+
+      const listText = graphs.length === 0
+        ? "No saved graphs found."
+        : graphs.map((g: any, i: number) =>
+            `${i + 1}. ${g.name}${g.nodeCount != null ? ` (${g.nodeCount} nodes)` : ""}`
+          ).join("\n");
+
+      return {
+        structuredContent: { jsonrpc: "2.0" as const, result: { graphs, count: graphs.length } },
+        content: [{ type: "text" as const, text: `Saved graphs (${graphs.length}):\n${listText}` }],
       };
     } catch (err: any) {
       return { isError: true, content: [{ type: "text" as const, text: `Error: ${err.message}` }] };

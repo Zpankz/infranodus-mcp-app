@@ -1,0 +1,81 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/2026-01-26/app-manifest.json",
+  "name": "infranodus",
+  "displayName": "InfraNodus",
+  "version": "0.1.0",
+  "description": "Knowledge-graph insights inside your MCP host. Visualize text as a network, find topics and structural gaps, ask in natural language.",
+  "homepage": "https://infranodus.com",
+  "repository": "https://github.com/Zpankz/infranodus-mcp-app",
+  "license": "MIT",
+  "entry": "index.html",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "128": "icons/icon-128.png"
+  },
+  "surfaces": [
+    {
+      "id": "canvas",
+      "uri": "graph://*",
+      "label": "Graph canvas",
+      "displayModes": ["inline", "fullscreen"],
+      "defaultMode": "fullscreen"
+    },
+    {
+      "id": "query",
+      "uri": "graph://*/query",
+      "label": "Query compiler",
+      "displayModes": ["fullscreen"]
+    },
+    {
+      "id": "insights",
+      "uri": "graph://*/insights",
+      "label": "Insights & gaps",
+      "displayModes": ["fullscreen"]
+    },
+    {
+      "id": "resources",
+      "uri": "graphs://",
+      "label": "Resource browser",
+      "displayModes": ["fullscreen"]
+    },
+    {
+      "id": "onboard",
+      "uri": "app://onboard",
+      "label": "Onboarding",
+      "displayModes": ["fullscreen"]
+    }
+  ],
+  "tools": [
+    "analyzeText",
+    "openGraph",
+    "composeQuery",
+    "runQueryPlan",
+    "findBridges",
+    "expandConcept",
+    "summarize",
+    "findGaps",
+    "listGraphs",
+    "diff"
+  ],
+  "resources": [
+    { "uri": "graph://*", "mimeType": "application/vnd.infranodus.graph+json" },
+    { "uri": "graph://*/summary", "mimeType": "text/markdown" },
+    { "uri": "graphs://", "mimeType": "application/vnd.infranodus.index+json" }
+  ],
+  "permissions": {
+    "host": ["context", "callTool", "suggestPrompt", "subscribeToolResult"],
+    "network": []
+  },
+  "csp": {
+    "default-src": "'self'",
+    "style-src": "'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src": "'self' https://fonts.gstatic.com",
+    "script-src": "'self' 'unsafe-inline' https://unpkg.com",
+    "img-src": "'self' data:"
+  },
+  "theme": {
+    "prefersHostTokens": true,
+    "supportedSchemes": ["dark", "light"]
+  }
+}
