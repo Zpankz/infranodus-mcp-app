@@ -1,0 +1,19 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/2026-01-26/server-manifest.json",
+  "name": "infranodus",
+  "displayName": "InfraNodus",
+  "version": "0.1.0",
+  "description": "Knowledge-graph analysis: turn text into a network, find topics, bridges, and gaps.",
+  "homepage": "https://infranodus.com",
+  "repository": "https://github.com/Zpankz/infranodus-mcp-app",
+  "license": "MIT",
+  "app": {
+    "entry": "../app/index.html",
+    "manifest": "../app/manifest.json"
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": true
+  }
+}

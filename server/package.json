@@ -1,0 +1,18 @@
+{
+  "name": "infranodus-mcp-server-stub",
+  "version": "0.1.0",
+  "description": "MCP server stub that exposes InfraNodus tools and pairs them with the InfraNodus MCP app for rendering.",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

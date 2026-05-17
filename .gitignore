@@ -1,0 +1,33 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp.*
+
+# Build
+dist/
+build/
+.next/
+.cache/
+.parcel-cache/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Design-canvas internal state (preview only)
+docs/mockups/.design-canvas.state.json
+.design-canvas.state.json
