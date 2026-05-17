@@ -1,345 +1,1452 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="color-scheme" content="light dark">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <style>
-:root{--bg:#fff;--fg:#1a1a2e;--sf:#f4f4f8;--bd:#e0e0e6;--ac:#4361ee;--gp:#e63946;--mt:#888;--r:8px}
-@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--sf:#161b22;--bd:#30363d;--ac:#7b9ef5;--gp:#ff6b6b;--mt:#8b949e}}
-*{box-sizing:border-box;margin:0}
-html,body{font-family:var(--mcp-font-family,system-ui,-apple-system,sans-serif);background:transparent;color:var(--fg);overflow:hidden}
-body{display:flex;flex-direction:column;height:100vh;min-height:400px}
+/* ============================================================
+   InfraNodus MCP App — Design System
+   Dark-primary, sibling-of InfraNodus. Two directions:
+   A: Topology (dev-tool, dense) · B: Atlas (graph-first, airy)
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-.tabs{display:flex;border-bottom:2px solid var(--bd);padding:0 12px;flex-shrink:0}
-.tab{padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--mt);transition:all .15s}
-.tab:hover{color:var(--fg)}
-.tab.active{color:var(--ac);border-bottom-color:var(--ac)}
-.tab .badge{font-size:10px;background:var(--ac);color:#fff;border-radius:10px;padding:1px 6px;margin-left:4px;font-weight:700}
+:root {
+  /* MCP host tokens with fallbacks */
+  --host-bg:       var(--color-background-primary,   oklch(0.135 0.006 250));
+  --host-bg-2:     var(--color-background-secondary, oklch(0.165 0.006 250));
+  --host-bg-3:     var(--color-background-tertiary,  oklch(0.195 0.006 250));
+  --host-fg:       var(--color-text-primary,         oklch(0.965 0.003 250));
+  --host-fg-2:     var(--color-text-secondary,       oklch(0.74  0.005 250));
+  --host-fg-3:     var(--color-text-tertiary,        oklch(0.56  0.006 250));
+  --host-border:   var(--color-border-primary,       oklch(0.28  0.006 250));
+  --host-border-2: var(--color-border-secondary,     oklch(0.235 0.006 250));
+  --font-ui:  "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Brand */
+  --in-accent:      oklch(0.74 0.155 52);
+  --in-accent-soft: oklch(0.74 0.155 52 / 0.12);
+  --in-accent-line: oklch(0.74 0.155 52 / 0.32);
+  /* Cluster palette — matched chroma 0.14, L 0.74 */
+  --c-orange:  oklch(0.74 0.155 52);
+  --c-cyan:    oklch(0.74 0.13  205);
+  --c-violet:  oklch(0.74 0.14  290);
+  --c-lime:    oklch(0.80 0.14  140);
+  --c-magenta: oklch(0.74 0.16  340);
+  --c-blue:    oklch(0.74 0.13  240);
+  /* Status */
+  --ok:  oklch(0.78 0.14 150);
+  --warn: oklch(0.80 0.14 80);
+  --err: oklch(0.70 0.18 25);
+  /* Radii */
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-xl: 14px;
+  /* Shadows */
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-2: 0 8px 24px oklch(0 0 0 / 0.4);
+}
 
-.panel{flex:1;overflow-y:auto;padding:16px;display:none}
-.panel.active{display:block}
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--host-fg);
+  background: var(--host-bg);
+  -webkit-font-smoothing: antialiased;
+}
 
-.stats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.stat{padding:10px 14px;background:var(--sf);border-radius:var(--r);min-width:80px;text-align:center}
-.stat b{font-size:22px;display:block;color:var(--ac)}
-.stat small{font-size:10px;color:var(--mt);text-transform:uppercase;letter-spacing:.05em}
+/* ── App Shell ── */
+#app {
+  height: 100%; display: grid;
+  grid-template: auto 1fr / 1fr;
+  overflow: hidden;
+}
 
-canvas{width:100%;height:100%;display:block;cursor:grab}
-canvas:active{cursor:grabbing}
+/* Topology: 3-pane */
+.layout-topology {
+  grid-template: auto 1fr auto / 1fr 300px;
+}
+/* Atlas: full-bleed graph */
+.layout-atlas {
+  grid-template: 1fr / 1fr;
+  position: relative;
+}
 
-.cluster{padding:12px;background:var(--sf);border-radius:var(--r);margin-bottom:8px;border-left:4px solid var(--ac);cursor:pointer;transition:transform .1s}
-.cluster:hover{transform:translateX(4px)}
-.cluster-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.cluster-name{font-weight:600;font-size:14px}
-.cluster-meta{font-size:11px;color:var(--mt)}
-.chips{display:flex;flex-wrap:wrap;gap:4px}
-.chip{padding:3px 10px;border-radius:12px;font-size:12px;background:var(--bg);border:1px solid var(--bd)}
+/* ── App Bar ── */
+.appbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-bottom: 1px solid var(--host-border);
+  background: var(--host-bg); z-index: 10;
+  grid-column: 1 / -1;
+}
+.appbar .logo {
+  width: 22px; height: 22px; border-radius: 5px;
+  background:
+    radial-gradient(circle at 30% 30%, var(--in-accent), transparent 50%),
+    radial-gradient(circle at 70% 70%, var(--c-cyan), transparent 55%),
+    var(--host-bg-3);
+  border: 1px solid var(--host-border);
+  flex-shrink: 0;
+}
+.appbar .title {
+  font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: 0.04em; font-weight: 500;
+}
+.appbar .crumb {
+  color: var(--host-fg-3); font-family: var(--font-mono); font-size: 11px;
+}
+.appbar .spacer { flex: 1; }
+.appbar .pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--host-bg-3); color: var(--host-fg-2);
+  border: 1px solid var(--host-border-2);
+}
+.appbar .pill .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.appbar .pill .dot.ok { background: var(--ok); }
+.appbar .pill .dot.warn { background: var(--warn); }
+.appbar .pill .dot.err { background: var(--err); }
 
-.gap{padding:10px 14px;background:var(--sf);border-radius:var(--r);margin-bottom:6px;border-left:4px solid var(--gp);font-size:13px;display:flex;align-items:center;gap:8px}
-.gap-arrow{color:var(--gp);font-weight:700;font-size:16px}
+/* Direction toggle */
+.dir-toggle {
+  display: flex; border: 1px solid var(--host-border); border-radius: var(--r-md);
+  overflow: hidden;
+}
+.dir-toggle button {
+  padding: 4px 10px; border: none; background: transparent;
+  color: var(--host-fg-3); font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+}
+.dir-toggle button.active {
+  background: var(--host-bg-3); color: var(--host-fg);
+}
+.dir-toggle button:hover:not(.active) { color: var(--host-fg-2); }
 
-.stmt{padding:10px 14px;background:var(--sf);border-radius:var(--r);margin-bottom:6px;font-size:13px;line-height:1.6;cursor:pointer;transition:border-color .15s;border-left:3px solid transparent}
-.stmt:hover{border-left-color:var(--ac)}
-.stmt-meta{font-size:10px;color:var(--mt);margin-top:4px}
+/* ── Graph Canvas ── */
+.graph-wrap {
+  position: relative; overflow: hidden;
+  background: var(--host-bg);
+}
+.layout-topology .graph-wrap { grid-column: 1; grid-row: 2; }
+.layout-atlas .graph-wrap { grid-column: 1; grid-row: 1; }
 
-.advice{padding:16px;background:var(--sf);border-radius:var(--r);font-size:14px;line-height:1.8;white-space:pre-wrap}
+#graphCanvas {
+  display: block; width: 100%; height: 100%;
+  cursor: grab;
+}
+#graphCanvas.dragging { cursor: grabbing; }
 
-.search-r{padding:12px;background:var(--sf);border-radius:var(--r);margin-bottom:6px}
-.search-r-score{font-size:11px;color:var(--ac);font-weight:600}
+/* Canvas overlay controls */
+.canvas-controls {
+  position: absolute; bottom: 12px; right: 12px;
+  display: flex; gap: 4px; z-index: 5;
+}
+.canvas-controls button {
+  width: 32px; height: 32px; border-radius: var(--r-md);
+  border: 1px solid var(--host-border); background: var(--host-bg-2);
+  color: var(--host-fg-2); cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.canvas-controls button:hover { background: var(--host-bg-3); color: var(--host-fg); }
 
-.empty{text-align:center;padding:48px 16px;color:var(--mt)}
-.empty b{display:block;font-size:18px;margin-bottom:8px;color:var(--fg)}
+/* Node tooltip */
+.tooltip {
+  position: absolute; pointer-events: none; z-index: 20;
+  padding: 8px 12px; border-radius: var(--r-lg);
+  background: oklch(0.16 0.006 250 / 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--host-border);
+  box-shadow: var(--shadow-2);
+  font-size: 12px; max-width: 240px;
+  opacity: 0; transition: opacity 150ms;
+}
+.tooltip.visible { opacity: 1; }
+.tooltip .tt-label {
+  font-family: var(--font-mono); font-weight: 600;
+  font-size: 13px; margin-bottom: 4px;
+}
+.tooltip .tt-cluster { font-size: 11px; color: var(--host-fg-3); }
+.tooltip .tt-stats {
+  display: flex; gap: 12px; margin-top: 6px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--host-fg-3);
+}
+.tooltip .tt-stats span { color: var(--host-fg-2); }
 
-.tooltip{position:fixed;background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;font-size:12px;pointer-events:none;z-index:99;max-width:220px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+/* ── Sidebar ── */
+.sidebar {
+  grid-column: 2; grid-row: 2 / span 2;
+  border-left: 1px solid var(--host-border);
+  display: flex; flex-direction: column;
+  min-height: 0; background: var(--host-bg);
+}
+
+/* Tabs */
+.tab-bar {
+  display: flex; border-bottom: 1px solid var(--host-border);
+  padding: 0 4px;
+}
+.tab-bar button {
+  padding: 8px 12px; border: none; background: transparent;
+  color: var(--host-fg-3); font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: 0.04em; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab-bar button.active {
+  color: var(--in-accent); border-bottom-color: var(--in-accent);
+}
+.tab-bar button:hover:not(.active) { color: var(--host-fg-2); }
+
+.tab-content {
+  flex: 1; overflow-y: auto; padding: 12px 14px;
+}
+
+/* Scrollbar */
+.tab-content::-webkit-scrollbar { width: 6px; }
+.tab-content::-webkit-scrollbar-thumb {
+  background: var(--host-border); border-radius: 999px;
+}
+.tab-content::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Stat tiles ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin-bottom: 14px;
+}
+.stat {
+  padding: 8px 10px; background: var(--host-bg-3);
+  border: 1px solid var(--host-border-2); border-radius: var(--r-md);
+}
+.stat .num {
+  font-family: var(--font-mono); font-size: 18px;
+  font-weight: 600; color: var(--host-fg);
+}
+.stat .lab {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--host-fg-3); margin-top: 2px;
+}
+
+/* ── Section labels ── */
+.section-label {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--host-fg-3); margin: 14px 0 8px;
+}
+.section-label:first-child { margin-top: 0; }
+
+/* ── Cluster list ── */
+.cluster-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0; cursor: pointer;
+  transition: opacity 150ms;
+}
+.cluster-item:hover { opacity: 0.8; }
+.cluster-item .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.cluster-item .name { font-size: 13px; flex: 1; }
+.cluster-item .count {
+  font-family: var(--font-mono); font-size: 11px; color: var(--host-fg-3);
+}
+.cluster-item.highlighted .name { color: var(--host-fg); font-weight: 500; }
+.cluster-item.dimmed { opacity: 0.35; }
+
+/* Cluster word chips */
+.cluster-words {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin: 4px 0 0 20px;
+}
+.cluster-words .chip {
+  padding: 2px 7px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 10px;
+  border: 1px solid var(--host-border-2);
+  color: var(--host-fg-2);
+}
+
+/* ── Gap cards ── */
+.gap-card {
+  padding: 10px 12px; border-radius: var(--r-md);
+  background: var(--host-bg-2); border: 1px solid var(--host-border-2);
+  margin-bottom: 8px; cursor: pointer;
+  transition: border-color 200ms;
+}
+.gap-card:hover { border-color: var(--in-accent-line); }
+.gap-card .gap-pair {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+}
+.gap-card .gap-pair .arrow { color: var(--c-magenta); }
+.gap-card .gap-desc {
+  font-size: 12px; color: var(--host-fg-3); margin-top: 6px; line-height: 1.5;
+}
+
+/* ── Statement list ── */
+.statement {
+  padding: 8px 0; border-bottom: 1px solid var(--host-border-2);
+  font-size: 13px; line-height: 1.55; color: var(--host-fg-2);
+}
+.statement:last-child { border-bottom: none; }
+.statement .st-community {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 5px; border-radius: 999px;
+  margin-right: 6px; color: var(--host-bg);
+}
+
+/* ── Top nodes bar chart ── */
+.top-node {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0;
+}
+.top-node .bar-wrap {
+  flex: 1; height: 4px; background: var(--host-bg-3);
+  border-radius: 2px; overflow: hidden;
+}
+.top-node .bar {
+  height: 100%; border-radius: 2px;
+  transition: width 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.top-node .label {
+  font-family: var(--font-mono); font-size: 11px; color: var(--host-fg-2);
+  min-width: 90px;
+}
+.top-node .value {
+  font-family: var(--font-mono); font-size: 10px; color: var(--host-fg-3);
+  min-width: 30px; text-align: right;
+}
+
+/* ── Query bar (Topology bottom) ── */
+.query-bar {
+  grid-column: 1; grid-row: 3;
+  border-top: 1px solid var(--host-border);
+  padding: 8px 14px; display: flex; gap: 10px;
+  align-items: center; background: var(--host-bg);
+}
+.query-input {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  background: var(--host-bg-2); border: 1px solid var(--host-border);
+  border-radius: var(--r-md); padding: 6px 10px;
+}
+.query-input .prompt-char {
+  font-family: var(--font-mono); color: var(--in-accent);
+}
+.query-input input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--host-fg); font-family: var(--font-ui); font-size: 13px;
+}
+.query-input input::placeholder { color: var(--host-fg-3); }
+.query-input .kbd {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 2px 6px; border-radius: var(--r-sm);
+  border: 1px solid var(--host-border);
+  background: var(--host-bg-3); color: var(--host-fg-3);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: var(--r-md);
+  background: var(--host-bg-2); color: var(--host-fg);
+  border: 1px solid var(--host-border); cursor: pointer;
+  font-family: var(--font-ui); font-size: 13px;
+}
+.btn:hover { background: var(--host-bg-3); }
+.btn-primary {
+  background: var(--in-accent); color: oklch(0.15 0.02 50);
+  border-color: oklch(0.74 0.155 52 / 0.6);
+  font-weight: 600;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+
+/* ── Welcome / Onboarding ── */
+.welcome {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; text-align: center; padding: 40px;
+  position: relative;
+}
+.welcome .bg-graph {
+  position: absolute; inset: 0; opacity: 0.08;
+}
+.welcome h1 {
+  font-family: var(--font-mono); font-size: 24px;
+  font-weight: 500; letter-spacing: -0.02em;
+  margin-bottom: 12px; z-index: 1;
+}
+.welcome p {
+  font-size: 15px; color: var(--host-fg-2);
+  max-width: 420px; line-height: 1.6;
+  z-index: 1;
+}
+.welcome .actions {
+  display: flex; gap: 10px; margin-top: 24px; z-index: 1;
+}
+
+/* ── Atlas floating chrome ── */
+.atlas-header {
+  position: absolute; top: 14px; left: 14px; right: 14px;
+  display: flex; align-items: center; gap: 12px; z-index: 10;
+}
+.atlas-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-radius: 999px;
+  background: oklch(0.135 0.006 250 / 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--host-border-2);
+}
+.atlas-cluster-legend {
+  position: absolute; bottom: 80px; left: 16px; z-index: 10;
+  padding: 12px 14px; border-radius: var(--r-xl);
+  background: oklch(0.135 0.006 250 / 0.80);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--host-border-2);
+  min-width: 200px;
+}
+.atlas-insight-card {
+  position: absolute; top: 70px; right: 16px; z-index: 10;
+  width: 280px; padding: 14px 16px; border-radius: var(--r-xl);
+  background: oklch(0.135 0.006 250 / 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--host-border-2);
+}
+.atlas-query {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 10; width: min(560px, 70%);
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 999px;
+  background: oklch(0.135 0.006 250 / 0.85);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--in-accent-line);
+  box-shadow: var(--shadow-2);
+}
+.atlas-query input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--host-fg); font-family: var(--font-ui); font-size: 14px;
+}
+.atlas-query input::placeholder { color: var(--host-fg-3); }
+
+/* Vignette for Atlas */
+.vignette {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(circle at 50% 50%, transparent 30%, var(--host-bg) 95%);
+}
+
+/* ── Transitions ── */
+.fade-in { animation: fadeIn 220ms ease-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Divider */
+.divider { height: 1px; background: var(--host-border-2); margin: 12px 0; }
+
+/* Metric inline */
+.metric {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 8px; background: var(--host-bg-3);
+  border: 1px solid var(--host-border-2); border-radius: var(--r-sm);
+}
+.metric .mv { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+.metric .mk { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--host-fg-3); }
+
+/* Follow-up suggestions */
+.suggest {
+  padding: 6px 10px; border-radius: var(--r-md);
+  background: var(--host-bg-2); border: 1px solid var(--host-border-2);
+  font-size: 12px; color: var(--host-fg-2); cursor: pointer;
+  margin-bottom: 6px; transition: border-color 200ms;
+}
+.suggest:hover { border-color: var(--in-accent-line); color: var(--host-fg); }
+.suggest .sq { font-family: var(--font-mono); color: var(--in-accent); margin-right: 6px; }
 </style>
 </head>
 <body>
-<div class="tabs" id="tabs"></div>
-<div id="panels"></div>
-<div class="tooltip" id="tip" style="display:none"></div>
+<div id="app"></div>
+<div class="tooltip" id="tooltip">
+  <div class="tt-label" id="tt-label"></div>
+  <div class="tt-cluster" id="tt-cluster"></div>
+  <div class="tt-stats">
+    <span>bc: <span id="tt-bc">—</span></span>
+    <span>deg: <span id="tt-deg">—</span></span>
+    <span>cluster: <span id="tt-comm">—</span></span>
+  </div>
+</div>
 
 <script type="module">
-import{App,applyDocumentTheme,applyHostStyleVariables}from"@modelcontextprotocol/ext-apps";
+import { App, applyDocumentTheme, applyHostStyleVariables } from "@modelcontextprotocol/ext-apps";
 
-const app=new App({name:"infranodus",version:"1.0.0"});
-const $=s=>document.querySelector(s);
-const $$=s=>document.querySelectorAll(s);
-let D=null,graph=null,hl=-1;
+// ============================================================
+// Constants
+// ============================================================
+const CLUSTER_COLORS = [
+  'oklch(0.74 0.155 52)',   // orange
+  'oklch(0.74 0.13 205)',   // cyan
+  'oklch(0.74 0.14 290)',   // violet
+  'oklch(0.80 0.14 140)',   // lime
+  'oklch(0.74 0.16 340)',   // magenta
+  'oklch(0.74 0.13 240)',   // blue
+  'oklch(0.74 0.12 170)',   // teal
+  'oklch(0.74 0.14 320)',   // pink
+  'oklch(0.74 0.10 100)',   // gold
+  'oklch(0.74 0.12 270)',   // indigo
+];
+const CLUSTER_HEX = [
+  '#d97757','#49a5b0','#9a6dd7','#6db86e','#d05fa0',
+  '#4d8fd6','#49b098','#c560b3','#b09840','#7068d0',
+];
 
-const PALETTE=["#4361ee","#e63946","#2ec4b6","#ff9f1c","#9b5de5","#00bbf9","#f15bb5","#fee440","#6a994e","#bc4749"];
+// ============================================================
+// State
+// ============================================================
+let state = {
+  direction: 'topology', // 'topology' | 'atlas'
+  activeTab: 'clusters',
+  graphData: null,   // { graphNodes, graphEdges, topClusters, topNodes, gaps, statements, ... }
+  // Physics
+  nodes: [],       // layout nodes with x,y,vx,vy
+  edges: [],
+  // Interaction
+  hoveredNode: null,
+  focusedCluster: null,
+  zoom: 1,
+  panX: 0, panY: 0,
+  dragging: null,
+  panning: false,
+  panStart: null,
+};
 
-// ── Tabs ──
-function initTabs(names){
-  const t=$("#tabs"),p=$("#panels");
-  t.innerHTML="";p.innerHTML="";
-  names.forEach((n,i)=>{
-    const tb=document.createElement("div");
-    tb.className="tab"+(i===0?" active":"");
-    tb.dataset.idx=i;
-    tb.innerHTML=n.label+(n.count!=null?`<span class="badge">${n.count}</span>`:"");
-    tb.onclick=()=>{$$(".tab").forEach(x=>x.classList.remove("active"));tb.classList.add("active");$$(".panel").forEach(x=>x.classList.remove("active"));$$(".panel")[i].classList.add("active");if(i===0&&graph)graph.resize()};
-    t.appendChild(tb);
-    const pn=document.createElement("div");
-    pn.className="panel"+(i===0?" active":"");
-    pn.id="p-"+n.id;
-    p.appendChild(pn);
-  });
-}
+// ============================================================
+// MCP App Lifecycle
+// ============================================================
+const app = new App({ name: 'infranodus', version: '1.0.0' });
+const el = document.getElementById('app');
 
-// ── Force Graph (Canvas) ──
-class ForceGraph{
-  constructor(container,nodes,edges,clusters){
-    this.c=document.createElement("canvas");
-    container.appendChild(this.c);
-    this.ctx=this.c.getContext("2d");
-    this.nodes=nodes.map((n,i)=>({...n,x:Math.random()*600-300,y:Math.random()*400-200,vx:0,vy:0,i}));
-    this.edges=edges;
-    this.clusters=clusters;
-    this.zoom=1;this.ox=0;this.oy=0;
-    this.drag=null;this.hover=-1;
-    this.resize();
-    this._bind();
-    this._run();
-  }
-  resize(){this.c.width=this.c.parentElement.clientWidth;this.c.height=this.c.parentElement.clientHeight||400}
-  _bind(){
-    const c=this.c;
-    c.addEventListener("mousemove",e=>{
-      const r=c.getBoundingClientRect();
-      const mx=(e.clientX-r.left-this.c.width/2)/this.zoom-this.ox;
-      const my=(e.clientY-r.top-this.c.height/2)/this.zoom-this.oy;
-      if(this.drag!==null){const n=this.nodes[this.drag];n.x=mx;n.y=my;n.vx=0;n.vy=0;return}
-      let best=-1,bd=900;
-      this.nodes.forEach((n,i)=>{const d=(n.x-mx)**2+(n.y-my)**2;if(d<bd){bd=d;best=i}});
-      this.hover=bd<400?best:-1;
-      if(this.hover>=0){
-        const n=this.nodes[this.hover];
-        const tip=$("#tip");
-        tip.style.display="block";
-        tip.style.left=(e.clientX+12)+"px";
-        tip.style.top=(e.clientY-10)+"px";
-        tip.innerHTML=`<b>${n.label||n.id}</b>${n.community!=null?"<br>Cluster "+n.community:""}${n.bc!=null?"<br>Centrality: "+n.bc.toFixed(3):""}`;
-      }else{$("#tip").style.display="none"}
-    });
-    c.addEventListener("mousedown",e=>{
-      if(this.hover>=0){this.drag=this.hover;c.style.cursor="grabbing"}
-      else{this._panStart={x:e.clientX,y:e.clientY,ox:this.ox,oy:this.oy}}
-    });
-    c.addEventListener("mouseup",()=>{this.drag=null;this._panStart=null;c.style.cursor="grab"});
-    c.addEventListener("mouseleave",()=>{this.drag=null;this._panStart=null;$("#tip").style.display="none"});
-    c.addEventListener("wheel",e=>{e.preventDefault();this.zoom*=e.deltaY>0?.9:1.1;this.zoom=Math.max(.2,Math.min(5,this.zoom))},{passive:false});
-    c.addEventListener("mousemove",e=>{
-      if(this._panStart){
-        this.ox=this._panStart.ox+(e.clientX-this._panStart.x)/this.zoom;
-        this.oy=this._panStart.oy+(e.clientY-this._panStart.y)/this.zoom;
-      }
-    });
-    c.addEventListener("click",e=>{
-      if(this.hover>=0){
-        const n=this.nodes[this.hover];
-        hl=hl===n.community?-1:n.community;
-        highlightCluster(hl);
-      }
-    });
-    window.addEventListener("resize",()=>this.resize());
-  }
-  _run(){
-    const tick=()=>{this._simulate();this._draw();requestAnimationFrame(tick)};
-    tick();
-  }
-  _simulate(){
-    const ns=this.nodes,es=this.edges,K=.008,REP=800,DAMP=.92,LEN=60;
-    // Repulsion
-    for(let i=0;i<ns.length;i++)for(let j=i+1;j<ns.length;j++){
-      let dx=ns[j].x-ns[i].x,dy=ns[j].y-ns[i].y;
-      let d2=dx*dx+dy*dy+1;
-      let f=REP/d2;
-      ns[i].vx-=dx*f;ns[i].vy-=dy*f;
-      ns[j].vx+=dx*f;ns[j].vy+=dy*f;
+app.ontoolresult = (notification) => {
+  try {
+    const sc = notification?.params?.result?.structuredContent;
+    const result = sc?.result || sc;
+    if (result && (result.graphNodes || result.topClusters)) {
+      state.graphData = result;
+      buildPhysicsGraph(result);
+      render();
+    } else if (result?.advice) {
+      // AI advice result — show in sidebar
+      state.aiAdvice = result.advice;
+      render();
     }
-    // Attraction along edges
-    es.forEach(e=>{
-      const a=ns[e.si],b=ns[e.ti];
-      if(!a||!b)return;
-      let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)+.1;
-      let f=K*(d-LEN);
-      a.vx+=dx/d*f;a.vy+=dy/d*f;
-      b.vx-=dx/d*f;b.vy-=dy/d*f;
-    });
-    // Center gravity
-    ns.forEach(n=>{n.vx-=n.x*.001;n.vy-=n.y*.001});
-    // Integrate
-    ns.forEach(n=>{
-      if(this.drag===n.i)return;
-      n.vx*=DAMP;n.vy*=DAMP;
-      n.x+=n.vx;n.y+=n.vy;
-    });
-  }
-  _draw(){
-    const ctx=this.ctx,W=this.c.width,H=this.c.height;
-    ctx.clearRect(0,0,W,H);
-    ctx.save();
-    ctx.translate(W/2,H/2);
-    ctx.scale(this.zoom,this.zoom);
-    ctx.translate(this.ox,this.oy);
-    // Edges
-    ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue("--bd").trim()||"#ccc";
-    ctx.lineWidth=.5;
-    ctx.globalAlpha=.4;
-    this.edges.forEach(e=>{
-      const a=this.nodes[e.si],b=this.nodes[e.ti];
-      if(!a||!b)return;
-      if(hl>=0&&a.community!==hl&&b.community!==hl){ctx.globalAlpha=.06;return}
-      ctx.globalAlpha=hl>=0?.6:.3;
-      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
-    });
-    ctx.globalAlpha=1;
-    // Nodes
-    this.nodes.forEach((n,i)=>{
-      const r=Math.max(3,Math.min(12,(n.bc||.01)*200));
-      const col=PALETTE[n.community%PALETTE.length]||"#999";
-      const dim=hl>=0&&n.community!==hl;
-      ctx.globalAlpha=dim?.15:1;
-      ctx.beginPath();ctx.arc(n.x,n.y,r,0,Math.PI*2);
-      ctx.fillStyle=i===this.hover?"#fff":col;
-      ctx.fill();
-      if(i===this.hover){ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke()}
-      // Labels for larger nodes
-      if(r>5||i===this.hover){
-        ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--fg").trim()||"#333";
-        ctx.font=`${i===this.hover?11:9}px system-ui`;
-        ctx.textAlign="center";
-        ctx.fillText(n.label||"",n.x,n.y-r-3);
-      }
-    });
-    ctx.globalAlpha=1;
-    ctx.restore();
-  }
+  } catch(e) { console.error('toolresult parse error', e); }
+};
+
+app.onhostcontextchanged = (notification) => {
+  const ctx = notification?.params;
+  if (ctx?.theme) applyDocumentTheme(ctx.theme);
+  if (ctx?.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
+};
+
+try {
+  await app.connect();
+} catch(e) {
+  console.warn('MCP connect failed (standalone mode):', e.message);
 }
 
-function highlightCluster(id){
-  hl=id;
-  $$(".cluster").forEach(c=>{
-    c.style.opacity=hl<0||parseInt(c.dataset.cid)===hl?"1":".3";
+// ============================================================
+// Force-Directed Graph Engine
+// ============================================================
+function buildPhysicsGraph(data) {
+  const gn = data.graphNodes || [];
+  const ge = data.graphEdges || [];
+  const maxBc = Math.max(...gn.map(n => n.bc || 0), 0.001);
+  const W = 800, H = 600;
+
+  // Initialize nodes with positions based on community clustering
+  const communityPositions = {};
+  const communities = [...new Set(gn.map(n => n.community))];
+  communities.forEach((c, i) => {
+    const angle = (i / communities.length) * Math.PI * 2;
+    communityPositions[c] = {
+      cx: W/2 + Math.cos(angle) * W * 0.25,
+      cy: H/2 + Math.sin(angle) * H * 0.25,
+    };
+  });
+
+  state.nodes = gn.map((n, i) => {
+    const cp = communityPositions[n.community] || { cx: W/2, cy: H/2 };
+    const jitter = 60;
+    return {
+      id: n.id || String(i),
+      label: n.label,
+      community: n.community,
+      bc: n.bc || 0,
+      normBc: (n.bc || 0) / maxBc,
+      r: 3 + ((n.bc || 0) / maxBc) * 8,
+      color: CLUSTER_COLORS[n.community % CLUSTER_COLORS.length],
+      hex: CLUSTER_HEX[n.community % CLUSTER_HEX.length],
+      x: cp.cx + (Math.random() - 0.5) * jitter,
+      y: cp.cy + (Math.random() - 0.5) * jitter,
+      vx: 0, vy: 0,
+      degree: 0,
+    };
+  });
+
+  state.edges = ge.map(e => ({
+    source: typeof e.source === 'number' ? e.source : parseInt(e.source),
+    target: typeof e.target === 'number' ? e.target : parseInt(e.target),
+    weight: e.weight || 1,
+  })).filter(e => e.source < state.nodes.length && e.target < state.nodes.length);
+
+  // Compute degree
+  state.edges.forEach(e => {
+    if (state.nodes[e.source]) state.nodes[e.source].degree++;
+    if (state.nodes[e.target]) state.nodes[e.target].degree++;
+  });
+
+  // If no graph data, try to reconstruct from clusters
+  if (state.nodes.length === 0 && data.topClusters) {
+    reconstructFromClusters(data);
+  }
+
+  // Center view
+  state.zoom = 1;
+  state.panX = 0;
+  state.panY = 0;
+
+  startSimulation();
+}
+
+function reconstructFromClusters(data) {
+  const tc = data.topClusters || [];
+  const W = 800, H = 600;
+  let nodeIdx = 0;
+  tc.forEach((cluster, ci) => {
+    const angle = (ci / tc.length) * Math.PI * 2;
+    const cx = W/2 + Math.cos(angle) * W * 0.22;
+    const cy = H/2 + Math.sin(angle) * H * 0.22;
+    (cluster.words || []).forEach((word, wi) => {
+      const a = (wi / cluster.words.length) * Math.PI * 2;
+      const spread = 40 + cluster.words.length * 4;
+      state.nodes.push({
+        id: String(nodeIdx),
+        label: word,
+        community: ci,
+        bc: wi === 0 ? 0.8 : 0.2 + Math.random() * 0.3,
+        normBc: wi === 0 ? 1 : 0.3 + Math.random() * 0.3,
+        r: wi === 0 ? 9 : 4 + Math.random() * 3,
+        color: CLUSTER_COLORS[ci % CLUSTER_COLORS.length],
+        hex: CLUSTER_HEX[ci % CLUSTER_HEX.length],
+        x: cx + Math.cos(a) * spread,
+        y: cy + Math.sin(a) * spread,
+        vx: 0, vy: 0, degree: 0,
+      });
+      nodeIdx++;
+    });
+    // Intra-cluster edges
+    const start = nodeIdx - cluster.words.length;
+    for (let i = start + 1; i < nodeIdx; i++) {
+      state.edges.push({ source: start, target: i, weight: 0.6 });
+      if (i > start + 1 && Math.random() < 0.3) {
+        state.edges.push({ source: i - 1, target: i, weight: 0.3 });
+      }
+    }
+  });
+  // Inter-cluster bridges from gaps
+  (data.gaps || []).forEach(g => {
+    const src = state.nodes.find(n => n.label === (g.source || g[0]));
+    const tgt = state.nodes.find(n => n.label === (g.target || g[1]));
+    if (src && tgt) {
+      const si = state.nodes.indexOf(src);
+      const ti = state.nodes.indexOf(tgt);
+      state.edges.push({ source: si, target: ti, weight: 0.8 });
+    }
+  });
+  state.edges.forEach(e => {
+    if (state.nodes[e.source]) state.nodes[e.source].degree++;
+    if (state.nodes[e.target]) state.nodes[e.target].degree++;
   });
 }
 
-// ── Render functions ──
-function renderGraph(data){
-  D=data;
-  const clusters=data.topClusters||[];
-  const gaps=data.gaps||[];
-  const stmts=data.statements||[];
-  const tabs=[
-    {id:"graph",label:"Graph",count:data.nodeCount||0},
-    {id:"clusters",label:"Clusters",count:clusters.length},
-    {id:"gaps",label:"Gaps",count:gaps.length},
-    {id:"stmts",label:"Statements",count:stmts.length},
-  ];
-  initTabs(tabs);
+// ── Physics simulation ──
+let simRunning = false;
+let simAlpha = 1;
+const SIM_DECAY = 0.985;
+const SIM_MIN = 0.001;
 
-  // Stats
-  const statsHtml=`<div class="stats">
-    <div class="stat"><b>${data.nodeCount||0}</b><small>Nodes</small></div>
-    <div class="stat"><b>${data.edgeCount||0}</b><small>Edges</small></div>
-    <div class="stat"><b>${clusters.length}</b><small>Clusters</small></div>
-    <div class="stat"><b>${gaps.length}</b><small>Gaps</small></div>
-  </div>`;
+function startSimulation() {
+  simAlpha = 1;
+  if (!simRunning) {
+    simRunning = true;
+    requestAnimationFrame(simTick);
+  }
+}
 
-  // Graph panel
-  const gp=$("#p-graph");
-  gp.innerHTML=statsHtml;
-  gp.style.overflow="hidden";gp.style.padding="0";
-  // Use raw graph data from server if available, otherwise reconstruct from clusters
-  let nodes=[],edges=[];
-  if(data.graphNodes&&data.graphNodes.length>0){
-    nodes=data.graphNodes;
-    edges=data.graphEdges||[];
-  }else{
-    // Fallback: reconstruct from cluster words
-    const nmap={};let ni=0;
-    clusters.forEach(c=>{
-      (c.words||[]).forEach(w=>{
-        if(!(w in nmap)){nmap[w]=ni;nodes.push({id:w,label:w,community:parseInt(c.id)||ni,bc:Math.random()*.05});ni++}
-      });
-      const ws=c.words||[];
-      for(let i=0;i<ws.length;i++)for(let j=i+1;j<ws.length&&j<i+3;j++){
-        if(nmap[ws[i]]!=null&&nmap[ws[j]]!=null)edges.push({si:nmap[ws[i]],ti:nmap[ws[j]]});
+function simTick() {
+  if (simAlpha < SIM_MIN) { simRunning = false; drawGraph(); return; }
+  const nodes = state.nodes;
+  const edges = state.edges;
+  const N = nodes.length;
+
+  // Repulsion (Barnes-Hut simplified: direct for small graphs)
+  const repStr = 800;
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) {
+      let dx = nodes[j].x - nodes[i].x;
+      let dy = nodes[j].y - nodes[i].y;
+      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      let force = repStr / (dist * dist);
+      let fx = (dx / dist) * force;
+      let fy = (dy / dist) * force;
+      nodes[i].vx -= fx; nodes[i].vy -= fy;
+      nodes[j].vx += fx; nodes[j].vy += fy;
+    }
+  }
+
+  // Attraction (spring)
+  const springLen = 60;
+  const springStr = 0.06;
+  edges.forEach(e => {
+    const a = nodes[e.source], b = nodes[e.target];
+    if (!a || !b) return;
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    let force = (dist - springLen) * springStr * (e.weight || 1);
+    let fx = (dx / dist) * force;
+    let fy = (dy / dist) * force;
+    a.vx += fx; a.vy += fy;
+    b.vx -= fx; b.vy -= fy;
+  });
+
+  // Community attraction (gentle pull toward community center)
+  const commCenters = {};
+  nodes.forEach(n => {
+    if (!commCenters[n.community]) commCenters[n.community] = { x: 0, y: 0, c: 0 };
+    commCenters[n.community].x += n.x;
+    commCenters[n.community].y += n.y;
+    commCenters[n.community].c++;
+  });
+  Object.values(commCenters).forEach(c => { c.x /= c.c; c.y /= c.c; });
+  nodes.forEach(n => {
+    const cc = commCenters[n.community];
+    if (!cc) return;
+    n.vx += (cc.x - n.x) * 0.002;
+    n.vy += (cc.y - n.y) * 0.002;
+  });
+
+  // Center gravity
+  const cx = 400, cy = 300;
+  nodes.forEach(n => {
+    n.vx += (cx - n.x) * 0.0008;
+    n.vy += (cy - n.y) * 0.0008;
+  });
+
+  // Velocity update
+  const friction = 0.82;
+  nodes.forEach(n => {
+    if (state.dragging && state.dragging.id === n.id) return;
+    n.vx *= friction;
+    n.vy *= friction;
+    n.x += n.vx * simAlpha;
+    n.y += n.vy * simAlpha;
+    // Bounds
+    n.x = Math.max(20, Math.min(780, n.x));
+    n.y = Math.max(20, Math.min(580, n.y));
+  });
+
+  simAlpha *= SIM_DECAY;
+  drawGraph();
+  requestAnimationFrame(simTick);
+}
+
+// ============================================================
+// Canvas Rendering
+// ============================================================
+let canvas, ctx2d;
+
+function drawGraph() {
+  if (!canvas) return;
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx2d.clearRect(0, 0, w, h);
+  ctx2d.save();
+
+  // Apply zoom & pan
+  const scale = state.zoom;
+  const tx = w/2 + state.panX;
+  const ty = h/2 + state.panY;
+  ctx2d.translate(tx, ty);
+  ctx2d.scale(scale, scale);
+  ctx2d.translate(-400, -300); // center the 800x600 world
+
+  const nodes = state.nodes;
+  const edges = state.edges;
+  const hovered = state.hoveredNode;
+  const focCluster = state.focusedCluster;
+  const isAtlas = state.direction === 'atlas';
+
+  // ── Grid (Topology only) ──
+  if (!isAtlas) {
+    ctx2d.strokeStyle = 'oklch(0.22 0.004 250)';
+    ctx2d.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      const x = i * 80;
+      ctx2d.beginPath(); ctx2d.moveTo(x, 0); ctx2d.lineTo(x, 600); ctx2d.stroke();
+    }
+    for (let i = 0; i <= 8; i++) {
+      const y = i * 75;
+      ctx2d.beginPath(); ctx2d.moveTo(0, y); ctx2d.lineTo(800, y); ctx2d.stroke();
+    }
+  }
+
+  // Determine neighbor set for hover
+  const neighborSet = new Set();
+  const hovEdges = new Set();
+  if (hovered) {
+    const hi = nodes.indexOf(hovered);
+    neighborSet.add(hi);
+    edges.forEach((e, ei) => {
+      if (e.source === hi || e.target === hi) {
+        neighborSet.add(e.source);
+        neighborSet.add(e.target);
+        hovEdges.add(ei);
       }
     });
-    gaps.forEach(g=>{
-      const s=g.source||g[0],t=g.target||g[1];
-      if(s in nmap&&t in nmap)edges.push({si:nmap[s],ti:nmap[t]});
-    });
-    (data.bigrams||[]).forEach(b=>{
-      const parts=b.split(/\s*--?\s*|\s+/);
-      if(parts.length>=2&&parts[0] in nmap&&parts[1] in nmap)
-        edges.push({si:nmap[parts[0]],ti:nmap[parts[1]]});
-    });
   }
 
-  if(nodes.length>0){
-    graph=new ForceGraph(gp,nodes,edges,clusters);
-  }else{
-    gp.innerHTML+=`<div class="empty"><b>No graph data</b>The API didn't return node/edge data for visualization.</div>`;
+  // ── Cluster hulls ──
+  const communities = [...new Set(nodes.map(n => n.community))];
+  communities.forEach(comm => {
+    const cNodes = nodes.filter(n => n.community === comm);
+    if (cNodes.length < 3) return;
+    const dimmed = focCluster !== null && focCluster !== comm;
+    drawHull(ctx2d, cNodes, cNodes[0].color, isAtlas, dimmed);
+  });
+
+  // ── Edges ──
+  edges.forEach((e, ei) => {
+    const a = nodes[e.source], b = nodes[e.target];
+    if (!a || !b) return;
+    const isCross = a.community !== b.community;
+    const isHovEdge = hovEdges.has(ei);
+    const dimmedByCluster = focCluster !== null &&
+      a.community !== focCluster && b.community !== focCluster;
+    const dimmedByHover = hovered && !isHovEdge;
+
+    ctx2d.beginPath();
+    ctx2d.moveTo(a.x, a.y);
+    ctx2d.lineTo(b.x, b.y);
+
+    if (isHovEdge) {
+      ctx2d.strokeStyle = 'oklch(0.74 0.155 52)';
+      ctx2d.lineWidth = 1.5;
+      ctx2d.globalAlpha = 1;
+    } else if (isCross) {
+      ctx2d.strokeStyle = 'oklch(0.74 0.16 340)';
+      ctx2d.lineWidth = 0.6;
+      ctx2d.globalAlpha = dimmedByHover ? 0.08 : dimmedByCluster ? 0.15 : 0.4;
+      if (!isAtlas) { ctx2d.setLineDash([2, 3]); }
+    } else {
+      ctx2d.strokeStyle = 'oklch(0.40 0.005 250)';
+      ctx2d.lineWidth = 0.5;
+      ctx2d.globalAlpha = dimmedByHover ? 0.08 : dimmedByCluster ? 0.15 : (isAtlas ? 0.45 : 0.6);
+    }
+    ctx2d.stroke();
+    ctx2d.setLineDash([]);
+    ctx2d.globalAlpha = 1;
+  });
+
+  // ── Nodes ──
+  nodes.forEach((n, i) => {
+    const dimmedByCluster = focCluster !== null && n.community !== focCluster;
+    const dimmedByHover = hovered && !neighborSet.has(i);
+    const dimmed = dimmedByCluster || dimmedByHover;
+    const isHov = hovered && hovered.id === n.id;
+
+    ctx2d.globalAlpha = dimmed ? 0.25 : 1;
+
+    // Atlas glow
+    if (isAtlas && !dimmed && n.normBc > 0.3) {
+      ctx2d.beginPath();
+      ctx2d.arc(n.x, n.y, n.r + 6, 0, Math.PI * 2);
+      ctx2d.fillStyle = n.color;
+      ctx2d.globalAlpha = dimmed ? 0.03 : 0.12;
+      ctx2d.fill();
+      ctx2d.globalAlpha = dimmed ? 0.25 : 1;
+    }
+
+    // Node circle
+    ctx2d.beginPath();
+    ctx2d.arc(n.x, n.y, isHov ? n.r + 2 : n.r, 0, Math.PI * 2);
+    ctx2d.fillStyle = n.color;
+    ctx2d.fill();
+
+    // Stroke
+    if (!isAtlas) {
+      ctx2d.strokeStyle = 'oklch(0.135 0.006 250)';
+      ctx2d.lineWidth = 1.2;
+      ctx2d.stroke();
+    }
+
+    ctx2d.globalAlpha = 1;
+  });
+
+  // ── Labels ──
+  const showAll = state.zoom > 1.5;
+  ctx2d.textBaseline = 'middle';
+  nodes.forEach((n, i) => {
+    if (!showAll && n.normBc < 0.3 && !(hovered && neighborSet.has(i))) return;
+    const dimmedByCluster = focCluster !== null && n.community !== focCluster;
+    const dimmedByHover = hovered && !neighborSet.has(i);
+    const dimmed = dimmedByCluster || dimmedByHover;
+
+    ctx2d.globalAlpha = dimmed ? 0.2 : 0.9;
+    ctx2d.font = isAtlas
+      ? `${n.normBc > 0.5 ? 600 : 400} 11px Inter, sans-serif`
+      : `${n.normBc > 0.5 ? 600 : 400} 10px "JetBrains Mono", monospace`;
+
+    // Stroke for legibility
+    ctx2d.strokeStyle = 'oklch(0.135 0.006 250)';
+    ctx2d.lineWidth = 3;
+    ctx2d.lineJoin = 'round';
+    ctx2d.strokeText(n.label, n.x + n.r + 4, n.y);
+
+    ctx2d.fillStyle = dimmed ? 'oklch(0.56 0.006 250)' : 'oklch(0.90 0.003 250)';
+    ctx2d.fillText(n.label, n.x + n.r + 4, n.y);
+    ctx2d.globalAlpha = 1;
+  });
+
+  ctx2d.restore();
+}
+
+function drawHull(ctx, nodes, color, isAtlas, dimmed) {
+  if (nodes.length < 3) return;
+  // Compute convex hull
+  let cx = 0, cy = 0;
+  nodes.forEach(n => { cx += n.x; cy += n.y; });
+  cx /= nodes.length; cy /= nodes.length;
+  const sorted = nodes
+    .map(n => ({ x: n.x, y: n.y, ang: Math.atan2(n.y - cy, n.x - cx) }))
+    .sort((a, b) => a.ang - b.ang);
+  const pad = 25;
+  const pts = sorted.map(n => {
+    const dx = n.x - cx, dy = n.y - cy;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: n.x + (dx / len) * pad, y: n.y + (dy / len) * pad };
+  });
+  if (pts.length < 2) return;
+
+  ctx.beginPath();
+  ctx.moveTo((pts[0].x + pts[pts.length-1].x)/2, (pts[0].y + pts[pts.length-1].y)/2);
+  for (let i = 0; i < pts.length; i++) {
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % pts.length];
+    ctx.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x)/2, (p1.y + p2.y)/2);
+  }
+  ctx.closePath();
+
+  ctx.fillStyle = color;
+  ctx.globalAlpha = dimmed ? 0.02 : (isAtlas ? 0.08 : 0.05);
+  ctx.fill();
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = dimmed ? 0.3 : 0.6;
+  ctx.globalAlpha = dimmed ? 0.08 : (isAtlas ? 0.3 : 0.18);
+  if (!isAtlas) ctx.setLineDash([3, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+}
+
+// ============================================================
+// Canvas Interactions
+// ============================================================
+function setupCanvasEvents() {
+  canvas = document.getElementById('graphCanvas');
+  if (!canvas) return;
+  ctx2d = canvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  canvas.addEventListener('mousemove', onCanvasMouseMove);
+  canvas.addEventListener('mousedown', onCanvasMouseDown);
+  canvas.addEventListener('mouseup', onCanvasMouseUp);
+  canvas.addEventListener('mouseleave', onCanvasMouseLeave);
+  canvas.addEventListener('wheel', onCanvasWheel, { passive: false });
+  canvas.addEventListener('dblclick', onCanvasDblClick);
+}
+
+function resizeCanvas() {
+  if (!canvas) return;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx2d.scale(devicePixelRatio, devicePixelRatio);
+  drawGraph();
+}
+
+function canvasToWorld(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = clientX - rect.left;
+  const cy = clientY - rect.top;
+  const w = rect.width, h = rect.height;
+  const wx = (cx - w/2 - state.panX) / state.zoom + 400;
+  const wy = (cy - h/2 - state.panY) / state.zoom + 300;
+  return { x: wx, y: wy };
+}
+
+function findNodeAt(wx, wy) {
+  // Search in reverse (top-drawn last)
+  for (let i = state.nodes.length - 1; i >= 0; i--) {
+    const n = state.nodes[i];
+    const dx = n.x - wx, dy = n.y - wy;
+    const hitR = Math.max(n.r, 6) + 4;
+    if (dx*dx + dy*dy < hitR*hitR) return n;
+  }
+  return null;
+}
+
+function onCanvasMouseMove(e) {
+  const { x, y } = canvasToWorld(e.clientX, e.clientY);
+
+  if (state.dragging) {
+    state.dragging.x = x;
+    state.dragging.y = y;
+    state.dragging.vx = 0;
+    state.dragging.vy = 0;
+    drawGraph();
+    return;
   }
 
-  // Clusters panel
-  $("#p-clusters").innerHTML=clusters.map((c,i)=>{
-    const col=PALETTE[parseInt(c.id)%PALETTE.length]||PALETTE[i%PALETTE.length];
-    return`<div class="cluster" data-cid="${c.id}" style="border-left-color:${col}" onclick="window._hlCluster(${c.id})">
-      <div class="cluster-head"><span class="cluster-name" style="color:${col}">Cluster ${c.id}</span><span class="cluster-meta">${(c.words||[]).length} concepts</span></div>
-      <div class="chips">${(c.words||[]).slice(0,10).map(w=>`<span class="chip" style="border-color:${col}">${w}</span>`).join("")}</div>
+  if (state.panning) {
+    state.panX += e.clientX - state.panStart.x;
+    state.panY += e.clientY - state.panStart.y;
+    state.panStart = { x: e.clientX, y: e.clientY };
+    drawGraph();
+    return;
+  }
+
+  const node = findNodeAt(x, y);
+  if (node !== state.hoveredNode) {
+    state.hoveredNode = node;
+    showTooltip(node, e.clientX, e.clientY);
+    canvas.style.cursor = node ? 'pointer' : 'grab';
+    drawGraph();
+  } else if (node) {
+    moveTooltip(e.clientX, e.clientY);
+  }
+}
+
+function onCanvasMouseDown(e) {
+  const { x, y } = canvasToWorld(e.clientX, e.clientY);
+  const node = findNodeAt(x, y);
+
+  if (node) {
+    state.dragging = node;
+    canvas.classList.add('dragging');
+    canvas.style.cursor = 'grabbing';
+  } else {
+    state.panning = true;
+    state.panStart = { x: e.clientX, y: e.clientY };
+    canvas.classList.add('dragging');
+  }
+}
+
+function onCanvasMouseUp(e) {
+  if (state.dragging) {
+    // If barely moved, treat as click → focus cluster
+    state.dragging = null;
+    startSimulation(); // let physics settle
+  }
+  state.panning = false;
+  state.panStart = null;
+  canvas.classList.remove('dragging');
+  canvas.style.cursor = state.hoveredNode ? 'pointer' : 'grab';
+}
+
+function onCanvasMouseLeave() {
+  state.hoveredNode = null;
+  hideTooltip();
+  drawGraph();
+}
+
+function onCanvasWheel(e) {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.92 : 1.08;
+  state.zoom = Math.max(0.3, Math.min(5, state.zoom * delta));
+  drawGraph();
+}
+
+function onCanvasDblClick(e) {
+  const { x, y } = canvasToWorld(e.clientX, e.clientY);
+  const node = findNodeAt(x, y);
+  if (node) {
+    state.focusedCluster = state.focusedCluster === node.community ? null : node.community;
+    drawGraph();
+    render(); // update sidebar highlight
+  }
+}
+
+// ── Tooltip ──
+function showTooltip(node, cx, cy) {
+  const tt = document.getElementById('tooltip');
+  if (!node) { hideTooltip(); return; }
+  document.getElementById('tt-label').textContent = node.label;
+  const clusterData = state.graphData?.topClusters?.find(c => c.id === node.community);
+  document.getElementById('tt-cluster').textContent = clusterData
+    ? `cluster: ${clusterData.words?.slice(0, 3).join(', ')}`
+    : `community ${node.community}`;
+  document.getElementById('tt-bc').textContent = node.bc.toFixed(3);
+  document.getElementById('tt-deg').textContent = String(node.degree);
+  document.getElementById('tt-comm').textContent = String(node.community);
+  document.getElementById('tt-label').style.color = node.color;
+  tt.classList.add('visible');
+  moveTooltip(cx, cy);
+}
+
+function moveTooltip(cx, cy) {
+  const tt = document.getElementById('tooltip');
+  tt.style.left = (cx + 16) + 'px';
+  tt.style.top = (cy - 10) + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('visible');
+}
+
+// ============================================================
+// UI Rendering
+// ============================================================
+function render() {
+  const d = state.graphData;
+  if (!d) {
+    renderWelcome();
+  } else if (state.direction === 'atlas') {
+    renderAtlas(d);
+  } else {
+    renderTopology(d);
+  }
+  // Re-attach canvas events after render
+  requestAnimationFrame(() => {
+    setupCanvasEvents();
+    if (d) drawGraph();
+  });
+}
+
+function renderWelcome() {
+  el.className = '';
+  el.innerHTML = `
+    <div class="welcome fade-in">
+      <div class="bg-graph"></div>
+      <h1>Turn text into a knowledge graph</h1>
+      <p>InfraNodus analyzes text to reveal topical clusters, structural gaps, and key bridging concepts. Use the <code style="font-family:var(--font-mono);color:var(--in-accent)">analyze-text</code> tool to get started.</p>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="document.querySelector('.query-input input')?.focus()">Get started</button>
+      </div>
+      <div style="margin-top:32px;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;z-index:1">
+        ${['analyze-text → graph', 'graph-ai-advice → insights', 'semantic-search → find'].map(t =>
+          `<div style="font-family:var(--font-mono);font-size:11px;color:var(--host-fg-3);padding:6px 12px;border:1px solid var(--host-border-2);border-radius:var(--r-md)">${t}</div>`
+        ).join('')}
+      </div>
     </div>`;
-  }).join("")||`<div class="empty"><b>No clusters</b></div>`;
-
-  // Gaps panel
-  $("#p-gaps").innerHTML=gaps.map(g=>{
-    const s=g.source||g[0]||"?",t=g.target||g[1]||"?";
-    return`<div class="gap"><span>${s}</span><span class="gap-arrow">⟷</span><span>${t}</span></div>`;
-  }).join("")||`<div class="empty"><b>No structural gaps detected</b></div>`;
-
-  // Statements panel
-  $("#p-stmts").innerHTML=stmts.slice(0,40).map(s=>
-    `<div class="stmt"><div>${(s.content||"").replace(/</g,"&lt;")}</div><div class="stmt-meta">ID ${s.id}${s.community!=null?" · Cluster "+s.community:""}</div></div>`
-  ).join("")||`<div class="empty"><b>No statements</b></div>`;
 }
 
-window._hlCluster=id=>{hl=hl===id?-1:id;highlightCluster(hl)};
+function renderTopology(d) {
+  const tc = d.topClusters || [];
+  const gaps = d.gaps || [];
+  const stmts = d.statements || [];
+  const topN = d.topNodes || [];
 
-function renderAdvice(data){
-  initTabs([{id:"advice",label:"AI "+(data.mode||"Advice")}]);
-  $("#p-advice").innerHTML=`<div class="advice">${(data.advice||"").replace(/</g,"&lt;").replace(/\n/g,"<br>")}</div>`;
+  el.className = 'layout-topology';
+  el.innerHTML = `
+    ${renderAppBar(d)}
+    <div class="graph-wrap">
+      <canvas id="graphCanvas"></canvas>
+      <div class="canvas-controls">
+        <button onclick="zoomIn()" title="Zoom in">+</button>
+        <button onclick="zoomOut()" title="Zoom out">−</button>
+        <button onclick="resetView()" title="Reset view">⟲</button>
+      </div>
+    </div>
+    <div class="sidebar">
+      <div class="tab-bar">
+        ${['clusters','gaps','nodes','statements'].map(t =>
+          `<button class="${state.activeTab===t?'active':''}" onclick="switchTab('${t}')">${t}</button>`
+        ).join('')}
+      </div>
+      <div class="tab-content fade-in">
+        ${renderTabContent(d)}
+      </div>
+    </div>
+    <div class="query-bar">
+      <div class="appbar pill"><span class="dot ok"></span>graph://current</div>
+      <div class="query-input">
+        <span class="prompt-char">›</span>
+        <input placeholder="ask the graph anything…" onkeydown="handleQuery(event)">
+        <span class="kbd">⌘↵</span>
+      </div>
+      <button class="btn btn-primary" onclick="runQuery()">Run</button>
+    </div>`;
 }
 
-function renderSearch(data){
-  const results=data.results||[];
-  initTabs([{id:"search",label:"Search",count:results.length}]);
-  $("#p-search").innerHTML=`<div class="stats"><div class="stat"><b>${results.length}</b><small>Results for "${(data.query||"").replace(/</g,"&lt;")}"</small></div></div>`+
-    results.map((r,i)=>`<div class="search-r"><div>${(r.content||r.text||JSON.stringify(r).slice(0,200)).replace(/</g,"&lt;")}</div>${r.score!=null?`<div class="search-r-score">Similarity: ${(r.score*100).toFixed(1)}%</div>`:""}</div>`).join("")||`<div class="empty"><b>No results</b></div>`;
+function renderAtlas(d) {
+  const tc = d.topClusters || [];
+
+  el.className = 'layout-atlas';
+  el.innerHTML = `
+    <div class="graph-wrap" style="grid-column:1;grid-row:1">
+      <canvas id="graphCanvas"></canvas>
+      <div class="vignette"></div>
+      <div class="canvas-controls" style="bottom:80px">
+        <button onclick="zoomIn()">+</button>
+        <button onclick="zoomOut()">−</button>
+        <button onclick="resetView()">⟲</button>
+      </div>
+    </div>
+    <div class="atlas-header">
+      <div class="atlas-pill">
+        <div style="width:18px;height:18px;border-radius:5px;background:radial-gradient(circle at 30% 30%,var(--in-accent),transparent 50%),radial-gradient(circle at 70% 70%,var(--c-cyan),transparent 55%),var(--host-bg-3);border:1px solid var(--host-border)"></div>
+        <span style="font-family:var(--font-mono);font-size:12px">${d.contextName || 'graph'}</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--host-fg-3)">· ${d.nodeCount || state.nodes.length} nodes</span>
+      </div>
+      <span style="flex:1"></span>
+      <div class="dir-toggle">
+        <button onclick="setDirection('topology')">topo</button>
+        <button class="active" onclick="setDirection('atlas')">atlas</button>
+      </div>
+    </div>
+    <div class="atlas-cluster-legend">
+      <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--host-fg-3);margin-bottom:8px">clusters</div>
+      ${tc.map((c, i) => `
+        <div class="cluster-item ${state.focusedCluster===c.id?'highlighted':''}" onclick="focusCluster(${c.id})">
+          <span class="dot" style="background:${CLUSTER_COLORS[i % CLUSTER_COLORS.length]};box-shadow:0 0 10px ${CLUSTER_COLORS[i % CLUSTER_COLORS.length]}"></span>
+          <span class="name">${c.words?.[0] || 'cluster '+c.id}</span>
+          <span class="count">${c.words?.length || 0}</span>
+        </div>
+      `).join('')}
+    </div>
+    ${d.gaps?.length ? `
+    <div class="atlas-insight-card fade-in">
+      <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--host-fg-3);margin-bottom:8px">structural gaps</div>
+      ${(d.gaps || []).slice(0, 4).map(g => `
+        <div class="gap-card" style="margin-bottom:6px">
+          <div class="gap-pair">
+            <span style="color:var(--host-fg)">${g.source || g[0] || '?'}</span>
+            <span class="arrow">↔</span>
+            <span style="color:var(--host-fg)">${g.target || g[1] || '?'}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+    <div class="atlas-query">
+      <span style="font-family:var(--font-mono);color:var(--in-accent);font-size:14px">›</span>
+      <input placeholder="ask the graph anything…" onkeydown="handleQuery(event)">
+      <span style="font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid var(--host-border);color:var(--host-fg-3)">⌘↵</span>
+    </div>`;
 }
 
-// ── MCP lifecycle ──
-app.ontoolinput=()=>{
-  initTabs([{id:"loading",label:"Loading"}]);
-  $("#p-loading").innerHTML=`<div class="empty"><b>Analyzing with InfraNodus…</b>Building knowledge graph</div>`;
+function renderAppBar(d) {
+  return `
+    <div class="appbar">
+      <div class="logo"></div>
+      <span class="title">InfraNodus</span>
+      <span class="crumb">/ ${d.contextName || 'graph'}</span>
+      <span class="spacer"></span>
+      <div class="stats-inline" style="display:flex;gap:12px;font-family:var(--font-mono);font-size:11px;color:var(--host-fg-3)">
+        <span>${d.nodeCount || state.nodes.length} <span style="color:var(--host-fg-3)">nodes</span></span>
+        <span>${d.edgeCount || state.edges.length} <span style="color:var(--host-fg-3)">edges</span></span>
+        <span>${(d.topClusters||[]).length} <span style="color:var(--host-fg-3)">clusters</span></span>
+      </div>
+      <span class="spacer"></span>
+      <div class="dir-toggle">
+        <button class="${state.direction==='topology'?'active':''}" onclick="setDirection('topology')">topo</button>
+        <button class="${state.direction==='atlas'?'active':''}" onclick="setDirection('atlas')">atlas</button>
+      </div>
+      <div class="appbar pill"><span class="dot ${state.nodes.length?'ok':'warn'}"></span>${state.nodes.length?'connected':'waiting'}</div>
+    </div>`;
+}
+
+function renderTabContent(d) {
+  switch (state.activeTab) {
+    case 'clusters': return renderClustersTab(d);
+    case 'gaps': return renderGapsTab(d);
+    case 'nodes': return renderNodesTab(d);
+    case 'statements': return renderStatementsTab(d);
+    default: return '';
+  }
+}
+
+function renderClustersTab(d) {
+  const tc = d.topClusters || [];
+  return `
+    <div class="stats-row">
+      <div class="stat"><div class="num">${d.nodeCount || state.nodes.length}</div><div class="lab">nodes</div></div>
+      <div class="stat"><div class="num">${d.edgeCount || state.edges.length}</div><div class="lab">edges</div></div>
+      <div class="stat"><div class="num">${tc.length}</div><div class="lab">clusters</div></div>
+    </div>
+    <div class="section-label">topic clusters</div>
+    ${tc.map((c, i) => {
+      const color = CLUSTER_COLORS[i % CLUSTER_COLORS.length];
+      const isFocused = state.focusedCluster === c.id;
+      const isDimmed = state.focusedCluster !== null && !isFocused;
+      return `
+        <div class="cluster-item ${isFocused?'highlighted':''} ${isDimmed?'dimmed':''}" onclick="focusCluster(${c.id})">
+          <span class="dot" style="background:${color}"></span>
+          <span class="name">${c.words?.[0] || 'cluster '+c.id}</span>
+          <span class="count">${c.words?.length || 0}</span>
+        </div>
+        <div class="cluster-words">
+          ${(c.words || []).slice(0, 6).map(w =>
+            `<span class="chip" style="border-color:${color}40;color:${color}">${w}</span>`
+          ).join('')}
+        </div>`;
+    }).join('')}
+    ${d.aiAdvice ? `
+      <div class="divider"></div>
+      <div class="section-label">ai summary</div>
+      <p style="font-size:12.5px;line-height:1.55;color:var(--host-fg-2)">${d.aiAdvice}</p>
+    ` : ''}
+    ${state.aiAdvice ? `
+      <div class="divider"></div>
+      <div class="section-label">ai advice</div>
+      <p style="font-size:12.5px;line-height:1.55;color:var(--host-fg-2)">${state.aiAdvice}</p>
+    ` : ''}
+    <div class="divider"></div>
+    <div class="section-label">follow-up queries</div>
+    <div class="suggest" onclick="runSuggest('What are the structural gaps?')"><span class="sq">›</span>What are the structural gaps?</div>
+    <div class="suggest" onclick="runSuggest('Summarize the main topics')"><span class="sq">›</span>Summarize the main topics</div>
+    <div class="suggest" onclick="runSuggest('Find bridging concepts')"><span class="sq">›</span>Find bridging concepts</div>`;
+}
+
+function renderGapsTab(d) {
+  const gaps = d.gaps || [];
+  if (!gaps.length) return '<p style="color:var(--host-fg-3);font-size:13px">No structural gaps detected.</p>';
+  return `
+    <div class="section-label">structural gaps (${gaps.length})</div>
+    <p style="font-size:12px;color:var(--host-fg-3);margin-bottom:12px;line-height:1.5">
+      Gaps are pairs of clusters with low connectivity — potential areas for new insights or research questions.
+    </p>
+    ${gaps.map(g => `
+      <div class="gap-card" onclick="highlightGap('${g.source||g[0]||''}','${g.target||g[1]||''}')">
+        <div class="gap-pair">
+          <span style="color:var(--host-fg)">${g.source || g[0] || '?'}</span>
+          <span class="arrow">↔</span>
+          <span style="color:var(--host-fg)">${g.target || g[1] || '?'}</span>
+        </div>
+        ${g.rationale ? `<div class="gap-desc">${g.rationale}</div>` : ''}
+      </div>
+    `).join('')}`;
+}
+
+function renderNodesTab(d) {
+  const topN = d.topNodes || [];
+  const maxBc = Math.max(...state.nodes.map(n => n.bc), 0.001);
+  return `
+    <div class="section-label">top concepts (${topN.length})</div>
+    ${topN.slice(0, 20).map((name, i) => {
+      const node = state.nodes.find(n => n.label === name);
+      const bc = node ? node.bc : 0;
+      const pct = (bc / maxBc * 100).toFixed(0);
+      const color = node ? node.color : 'var(--host-fg-2)';
+      return `
+        <div class="top-node">
+          <span class="label">${name}</span>
+          <div class="bar-wrap"><div class="bar" style="width:${pct}%;background:${color}"></div></div>
+          <span class="value">${bc.toFixed(2)}</span>
+        </div>`;
+    }).join('')}`;
+}
+
+function renderStatementsTab(d) {
+  const stmts = d.statements || [];
+  if (!stmts.length) return '<p style="color:var(--host-fg-3);font-size:13px">No statements available.</p>';
+  return `
+    <div class="section-label">statements (${d.statementCount || stmts.length})</div>
+    ${stmts.map(s => {
+      const color = CLUSTER_HEX[s.community % CLUSTER_HEX.length] || '#888';
+      return `
+        <div class="statement">
+          <span class="st-community" style="background:${color}">${s.community}</span>
+          ${s.content}
+        </div>`;
+    }).join('')}`;
+}
+
+// ============================================================
+// Global handlers (called from onclick in HTML)
+// ============================================================
+window.setDirection = (dir) => {
+  state.direction = dir;
+  render();
 };
 
-app.ontoolresult=result=>{
-  const data=result?.structuredContent?.result;
-  if(!data){initTabs([{id:"err",label:"Error"}]);$("#p-err").innerHTML=`<div class="empty"><b>No data</b></div>`;return}
-  if(data.topClusters)renderGraph(data);
-  else if(data.advice)renderAdvice(data);
-  else if(data.results!=null)renderSearch(data);
-  else{initTabs([{id:"raw",label:"Result"}]);$("#p-raw").innerHTML=`<pre style="font-size:12px;overflow:auto">${JSON.stringify(data,null,2).replace(/</g,"&lt;")}</pre>`}
+window.switchTab = (tab) => {
+  state.activeTab = tab;
+  render();
 };
 
-app.onhostcontextchanged=ctx=>{applyDocumentTheme(ctx);applyHostStyleVariables(ctx)};
-app.onteardown=async()=>({});
-await app.connect();
+window.focusCluster = (id) => {
+  state.focusedCluster = state.focusedCluster === id ? null : id;
+  drawGraph();
+  render();
+};
 
-// Show initial state
-initTabs([{id:"welcome",label:"InfraNodus"}]);
-$("#p-welcome").innerHTML=`<div class="empty"><b>InfraNodus Knowledge Graph</b>Use the analyze-text tool to visualize text as an interactive knowledge graph.<br><br>Tools available:<br>• <b>analyze-text</b> — text → knowledge graph<br>• <b>graph-ai-advice</b> — AI summary, gaps, questions<br>• <b>semantic-search</b> — find related statements</div>`;
+window.highlightGap = (src, tgt) => {
+  const srcNode = state.nodes.find(n => n.label === src);
+  if (srcNode) {
+    state.focusedCluster = srcNode.community;
+    drawGraph();
+    render();
+  }
+};
+
+window.zoomIn = () => {
+  state.zoom = Math.min(5, state.zoom * 1.3);
+  drawGraph();
+};
+
+window.zoomOut = () => {
+  state.zoom = Math.max(0.3, state.zoom * 0.7);
+  drawGraph();
+};
+
+window.resetView = () => {
+  state.zoom = 1; state.panX = 0; state.panY = 0;
+  state.focusedCluster = null;
+  drawGraph();
+  render();
+};
+
+window.handleQuery = (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    runQuery();
+  }
+};
+
+window.runQuery = async () => {
+  const input = document.querySelector('.query-input input, .atlas-query input');
+  const q = input?.value?.trim();
+  if (!q) return;
+  try {
+    await app.callServerTool({ name: 'graph-ai-advice', arguments: { prompt: q } });
+  } catch(e) { console.warn('callServerTool failed:', e); }
+};
+
+window.runSuggest = async (q) => {
+  try {
+    await app.callServerTool({ name: 'graph-ai-advice', arguments: { prompt: q } });
+  } catch(e) { console.warn('callServerTool failed:', e); }
+};
+
+// ============================================================
+// Boot
+// ============================================================
+render();
 </script>
 </body>
 </html>
