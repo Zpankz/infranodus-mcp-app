@@ -44,7 +44,7 @@ function getLatestGraph(): StoredGraph | undefined {
 }
 
 export function createServer(): McpServer {
-  const server = new McpServer({ name: "infranodus-mcp-app", version: "1.1.0" });
+  const server = new McpServer({ name: "infranodus-mcp-app", version: "1.2.0" });
 
   registerAppResource(server, "InfraNodus View", VIEW_URI, {
     description: "Interactive InfraNodus knowledge graph view",
@@ -59,16 +59,17 @@ export function createServer(): McpServer {
   // analyze-text: text → knowledge graph
   // ══════════════════════════════════════════════════════════════════════════
   registerAppTool(server, "analyze-text", {
-    description: "Analyze text with InfraNodus to generate a knowledge graph showing topical clusters, gaps, and key concepts. Returns nodes with betweenness centrality, edges with weights, cluster membership, and structural gaps between communities.",
+    description: "Analyze text with InfraNodus to generate a knowledge graph showing topical clusters, gaps, and key concepts. Returns nodes with betweenness centrality, edges with weights, cluster membership, structural gaps, and extended graph summary with main topics, content gaps, conceptual gateways, and diversity statistics.",
     inputSchema: {
       text: z.string().describe("Text to analyze"),
       name: z.string().optional().describe("Context name (used to reference this graph later)"),
       api_key: z.string().optional().describe("InfraNodus API key (falls back to INFRANODUS_API_KEY env var)"),
       api_url: z.string().optional(),
       context_mode: z.enum(["Concepts only","[[Wiki Links]] and Concepts","[[Wiki Links]] Only","[[Wiki Links]] Prioritized"]).optional(),
+      ai_topics: z.boolean().optional().describe("Enable AI topic extraction (adds richer topic labels)"),
     },
     _meta: { ui: { resourceUri: VIEW_URI } },
-  }, async ({ text, name, api_key, api_url, context_mode }) => {
+  }, async ({ text, name, api_key, api_url, context_mode, ai_topics }) => {
     const apiKey = api_key || process.env.INFRANODUS_API_KEY || "";
     const apiUrl = api_url || process.env.INFRANODUS_API_URL || DEFAULT_API_URL;
     if (!apiKey) return { isError: true, content: [{ type: "text" as const, text: "Error: Set INFRANODUS_API_KEY or pass api_key." }] };
@@ -82,8 +83,12 @@ export function createServer(): McpServer {
         "Concepts only": { partOfSpeechToProcess: "HASHTAGS_AND_WORDS", doubleSquarebracketsProcessing: "EXCLUDE" },
       };
       body.contextSettings = csMap[context_mode || "Concepts only"];
+      if (ai_topics) body.aiTopics = true;
 
-      const resp = await fetch(`${apiUrl}/api/v1/graphAndStatements?doNotSave=true&addStats=true&dotGraph=true&optimize=develop`, {
+      let queryParams = "doNotSave=true&addStats=true&dotGraph=true&optimize=develop&extendedGraphSummary=true";
+      if (ai_topics) queryParams += "&aiTopics=true";
+
+      const resp = await fetch(`${apiUrl}/api/v1/graphAndStatements?${queryParams}`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify(body),
       });
@@ -95,6 +100,14 @@ export function createServer(): McpServer {
       const rawNodes = g?.nodes || [];
       const rawEdges = g?.edges || [];
 
+      // ── Parse extended graph summary ──
+      const extSummary = data?.extendedGraphSummary || {};
+      const mainTopics = extSummary.mainTopics || [];
+      const contentGaps = extSummary.contentGaps || [];
+      const conceptualGateways = extSummary.conceptualGateways || [];
+      const diversityStatistics = extSummary.diversityStatistics || {};
+      const topicsToDevelop = extSummary.topicsToDevelop || [];
+
       // ── Parse clusters ──
       const topClusters = (attr.top_clusters || []).map((c: any) => ({
         id: parseInt(c.community ?? c.id ?? 0),
@@ -103,25 +116,20 @@ export function createServer(): McpServer {
         bcRatio: c.bcRatio,
       }));
 
-      // ── Parse gaps (from/to community structure → source/target labels) ──
+      // ── Parse gaps ──
       const rawGaps = attr.gaps || [];
       const gaps = rawGaps.map((gap: any) => {
         const fromComm = gap.from || gap.source || {};
         const toComm = gap.to || gap.target || {};
         const fromNodes = fromComm.nodes || [];
         const toNodes = toComm.nodes || [];
-        // Use the top node (highest bc) from each community as the label
         const fromLabel = fromNodes.sort((a: any, b: any) => (b.bc || 0) - (a.bc || 0))[0]?.nodeName || `community ${fromComm.community || '?'}`;
         const toLabel = toNodes.sort((a: any, b: any) => (b.bc || 0) - (a.bc || 0))[0]?.nodeName || `community ${toComm.community || '?'}`;
         return {
-          source: fromLabel,
-          target: toLabel,
-          sourceCluster: parseInt(fromComm.community ?? 0),
-          targetCluster: parseInt(toComm.community ?? 0),
-          sourceWords: fromNodes.map((n: any) => n.nodeName),
-          targetWords: toNodes.map((n: any) => n.nodeName),
-          distance: gap.distance,
-          weightedDistance: gap.distanceWeighedBySize,
+          source: fromLabel, target: toLabel,
+          sourceCluster: parseInt(fromComm.community ?? 0), targetCluster: parseInt(toComm.community ?? 0),
+          sourceWords: fromNodes.map((n: any) => n.nodeName), targetWords: toNodes.map((n: any) => n.nodeName),
+          distance: gap.distance, weightedDistance: gap.distanceWeighedBySize,
         };
       });
 
@@ -145,7 +153,7 @@ export function createServer(): McpServer {
         }))
         .filter((e: any) => e.source != null && e.target != null);
 
-      // ── Compute modularity (ratio of intra-cluster edges) ──
+      // ── Compute modularity ──
       let intra = 0;
       graphEdges.forEach((e: any) => {
         if (graphNodes[e.source]?.community === graphNodes[e.target]?.community) intra++;
@@ -154,24 +162,18 @@ export function createServer(): McpServer {
 
       const result: any = {
         contextName: name || "MCP Analysis",
-        topClusters,
-        topNodes: (attr.top_nodes || []).slice(0, 30),
-        gaps,
-        dotGraph: attr.dotGraph || "",
-        bigrams: attr.bigrams || [],
-        nodeCount: graphNodes.length,
-        edgeCount: graphEdges.length,
-        clusterCount: topClusters.length,
-        modularity,
+        topClusters, topNodes: (attr.top_nodes || []).slice(0, 30),
+        gaps, dotGraph: attr.dotGraph || "", bigrams: attr.bigrams || [],
+        nodeCount: graphNodes.length, edgeCount: graphEdges.length,
+        clusterCount: topClusters.length, modularity,
         statementCount: (data?.entriesAndGraphOfContext?.statements || []).length,
         statements: (data?.entriesAndGraphOfContext?.statements || []).slice(0, 50).map((s: any) => ({
           id: s.id, content: s.content, community: s.topStatementCommunity,
         })),
-        graphNodes,
-        graphEdges,
+        graphNodes, graphEdges,
+        extendedGraphSummary: { mainTopics, contentGaps, conceptualGateways, diversityStatistics, topicsToDevelop },
       };
 
-      // Store for later reference by other tools
       storeGraph(name || "MCP Analysis", text, result);
 
       // ── Format text output ──
@@ -179,8 +181,8 @@ export function createServer(): McpServer {
         `  ${i+1}. [${c.words.slice(0,3).join(', ')}] (${c.words.length} nodes, ${(c.bcRatio*100).toFixed(0)}% centrality)`
       ).join("\n");
 
-      const gapText = gaps.slice(0,5).map((g: any) =>
-        `  ${g.source} ↔ ${g.target} (clusters ${g.sourceCluster}↔${g.targetCluster}, dist: ${g.distance?.toFixed(0) || '?'})`
+      const gapText = gaps.slice(0,5).map((gp: any) =>
+        `  ${gp.source} ↔ ${gp.target} (clusters ${gp.sourceCluster}↔${gp.targetCluster}, dist: ${gp.distance?.toFixed(0) || '?'})`
       ).join("\n");
 
       const topNodeDetails = graphNodes
@@ -189,6 +191,13 @@ export function createServer(): McpServer {
         .map((n: any) => `  ${n.label} (bc: ${n.bc.toFixed(3)}, deg: ${n.degree}, cluster: ${n.community})`)
         .join("\n");
 
+      const extSummaryText = mainTopics.length > 0
+        ? `\nMain topics: ${mainTopics.slice(0, 10).map((t: any) => typeof t === 'string' ? t : t.name || t.topic || JSON.stringify(t)).join(', ')}` : '';
+      const contentGapsText = contentGaps.length > 0
+        ? `\nContent gaps: ${contentGaps.slice(0, 5).map((cg: any) => typeof cg === 'string' ? cg : cg.name || cg.gap || JSON.stringify(cg)).join(', ')}` : '';
+      const gatewaysText = conceptualGateways.length > 0
+        ? `\nConceptual gateways: ${conceptualGateways.slice(0, 5).map((gw: any) => typeof gw === 'string' ? gw : gw.name || JSON.stringify(gw)).join(', ')}` : '';
+
       return {
         structuredContent: { jsonrpc: "2.0", result },
         content: [{ type: "text" as const, text:
@@ -196,7 +205,8 @@ export function createServer(): McpServer {
           `\nClusters:\n${clusterText}\n` +
           `\nStructural gaps (${gaps.length}):\n${gapText || "  (none)"}\n` +
           `\nTop nodes by betweenness centrality:\n${topNodeDetails}\n` +
-          `\nTop concepts: ${result.topNodes.slice(0,15).join(", ")}`
+          `\nTop concepts: ${result.topNodes.slice(0,15).join(", ")}` +
+          extSummaryText + contentGapsText + gatewaysText
         }],
       };
     } catch (err: any) {
@@ -206,61 +216,121 @@ export function createServer(): McpServer {
 
   // ══════════════════════════════════════════════════════════════════════════
   // graph-ai-advice: AI analysis grounded in graph data
+  // Uses /api/v1/graphAndAdvice (text → graph → AI in one call) when
+  // original text is available, or /api/v1/graphAiAdvice when re-querying
+  // a stored graph object.
   // ══════════════════════════════════════════════════════════════════════════
   registerAppTool(server, "graph-ai-advice", {
-    description: "Get AI advice grounded in a previously-analyzed InfraNodus graph. Passes the graph's DOT representation and cluster/node data as context. Modes: summary, gaps, questions, connections, response.",
+    description: "Get AI advice grounded in an InfraNodus knowledge graph. Uses graphAndAdvice (text→graph→AI in one call) when text is available, or graphAiAdvice to re-query a stored graph. The AI response is grounded in the actual graph structure — clusters, gaps, and key nodes.",
     inputSchema: {
-      prompt: z.string().describe("Question about the graph"),
-      mode: z.enum(["summary","gaps","questions","connections","response"]).optional().describe("Analysis mode (default: summary)"),
+      prompt: z.string().describe("Question or instruction for the AI"),
+      requestMode: z.enum(["question","summary","response","idea","challenge","fact","continue","transcend","paraphrase","outline","reprompt"]).optional().describe("AI response mode (default: summary)"),
+      optimize: z.enum(["gaps","develop","reinforce","latent","imagine"]).optional().describe("Graph optimization strategy: gaps=bridge clusters, develop=expand topics, reinforce=strengthen existing, latent=hidden patterns, imagine=creative"),
       graph_name: z.string().optional().describe("Name of a previously-analyzed graph to reference (defaults to most recent)"),
-      prompt_graph: z.string().optional().describe("DOT graph string to pass as context (auto-filled from stored graph if omitted)"),
-      prompt_context: z.string().optional().describe("Additional text context (auto-filled from stored graph if omitted)"),
+      text: z.string().optional().describe("Original text to analyze and get advice on (if no stored graph)"),
+      pinnedNodes: z.array(z.string()).optional().describe("Pin specific nodes/concepts to focus the AI on"),
+      modelToUse: z.string().optional().describe("AI model to use (e.g. gpt-4)"),
       api_key: z.string().optional(),
       api_url: z.string().optional(),
     },
     _meta: { ui: { resourceUri: VIEW_URI } },
-  }, async ({ prompt, mode, graph_name, prompt_graph, prompt_context, api_key, api_url }) => {
+  }, async ({ prompt, requestMode, optimize, graph_name, text, pinnedNodes, modelToUse, api_key, api_url }) => {
     const apiKey = api_key || process.env.INFRANODUS_API_KEY || "";
     const apiUrl = api_url || process.env.INFRANODUS_API_URL || DEFAULT_API_URL;
     if (!apiKey) return { isError: true, content: [{ type: "text" as const, text: "API key required." }] };
 
-    // Auto-fill graph context from store if not provided
-    let graphCtx = prompt_graph || "";
-    let textCtx = prompt_context || "";
     const stored = graph_name ? graphStore.get(graph_name) : getLatestGraph();
-    if (stored && !graphCtx) {
-      graphCtx = stored.dotGraph || stored.topNodesText;
-    }
-    if (stored && !textCtx) {
-      textCtx = stored.topNodesText;
-    }
+    const resolvedOptimize = optimize || "gaps";
+    const resolvedMode = requestMode || "summary";
 
     try {
-      const resp = await fetch(`${apiUrl}/api/v1/aiAdvice`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          mode: mode || "summary",
-          prompt,
-          promptGraph: graphCtx,
-          promptContext: textCtx,
-          extendedMode: "true",
-          app: "mcp_app",
-        }),
-      });
-      if (!resp.ok) {
-        const errBody = await resp.text().catch(() => "");
-        throw new Error(`API ${resp.status}: ${errBody.slice(0, 200)}`);
-      }
-      const data = await resp.json();
-      const advice = data?.choices?.[0]?.text || data?.result || JSON.stringify(data);
+      let advice = "";
+      let graphInfo: any = null;
 
-      // Also include what graph context was used
-      const ctxNote = stored
-        ? `[Grounded in graph "${stored.name}" — ${stored.result?.nodeCount || '?'} nodes, ${stored.result?.clusterCount || '?'} clusters]`
-        : "[No stored graph context — pass graph_name or run analyze-text first]";
+      if (stored && stored.result?.graphNodes?.length > 0) {
+        // ── Use graphAiAdvice: pass stored graph object for re-querying ──
+        const graphPayload = {
+          nodes: (stored.result.graphNodes || []).map((n: any) => ({
+            key: n.id, attributes: { label: n.label, community: n.community, betweenness: n.bc, degree: n.degree },
+          })),
+          edges: (stored.result.graphEdges || []).map((e: any) => {
+            const nodes = stored.result.graphNodes || [];
+            return { source: nodes[e.source]?.id, target: nodes[e.target]?.id, attributes: { weight: e.weight } };
+          }),
+          attributes: {
+            top_nodes: stored.result.topNodes || [],
+            top_clusters: stored.result.topClusters || [],
+            gaps: stored.result.gaps || [],
+          },
+        };
+        const statements = (stored.result.statements || []).map((s: any) => ({
+          id: s.id, content: s.content, community: s.community,
+        }));
+
+        const reqBody: Record<string, unknown> = {
+          prompt,
+          requestMode: resolvedMode,
+          graph: graphPayload,
+          statements,
+        };
+        if (pinnedNodes?.length) reqBody.pinnedNodes = pinnedNodes;
+        if (modelToUse) reqBody.modelToUse = modelToUse;
+
+        const resp = await fetch(`${apiUrl}/api/v1/graphAiAdvice?optimize=${resolvedOptimize}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify(reqBody),
+        });
+        if (!resp.ok) {
+          const errBody = await resp.text().catch(() => "");
+          throw new Error(`graphAiAdvice API ${resp.status}: ${errBody.slice(0, 300)}`);
+        }
+        const respData = await resp.json();
+        const aiAdvice = respData?.aiAdvice || respData?.choices || [];
+        advice = Array.isArray(aiAdvice)
+          ? aiAdvice.map((a: any) => a.text || a.content || "").join("\n")
+          : (typeof aiAdvice === 'string' ? aiAdvice : JSON.stringify(aiAdvice));
+        graphInfo = { name: stored.name, nodeCount: stored.result.nodeCount, clusterCount: stored.result.clusterCount };
+
+      } else {
+        // ── Use graphAndAdvice: text → graph → AI in one call ──
+        const sourceText = text || stored?.text;
+        if (!sourceText) {
+          return { isError: true, content: [{ type: "text" as const, text: "No text or stored graph available. Provide text or run analyze-text first." }] };
+        }
+
+        const reqBody: Record<string, unknown> = {
+          text: sourceText,
+          name: graph_name || stored?.name || "MCP Analysis",
+          requestMode: resolvedMode,
+          prompt,
+        };
+        if (pinnedNodes?.length) reqBody.pinnedNodes = pinnedNodes;
+        if (modelToUse) reqBody.modelToUse = modelToUse;
+
+        const resp = await fetch(`${apiUrl}/api/v1/graphAndAdvice?doNotSave=true&addStats=true&optimize=${resolvedOptimize}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify(reqBody),
+        });
+        if (!resp.ok) {
+          const errBody = await resp.text().catch(() => "");
+          throw new Error(`graphAndAdvice API ${resp.status}: ${errBody.slice(0, 300)}`);
+        }
+        const respData = await resp.json();
+        const aiAdvice = respData?.aiAdvice || [];
+        advice = Array.isArray(aiAdvice)
+          ? aiAdvice.map((a: any) => a.text || a.content || "").join("\n")
+          : (typeof aiAdvice === 'string' ? aiAdvice : JSON.stringify(aiAdvice));
+        graphInfo = { fromAdviceCall: true };
+      }
+
+      const ctxNote = graphInfo?.name
+        ? `[Grounded in graph "${graphInfo.name}" — ${graphInfo.nodeCount || '?'} nodes, ${graphInfo.clusterCount || '?'} clusters | mode: ${resolvedMode}, optimize: ${resolvedOptimize}]`
+        : `[AI advice | mode: ${resolvedMode}, optimize: ${resolvedOptimize}]`;
 
       return {
-        structuredContent: { jsonrpc: "2.0", result: { advice, mode: mode || "summary", graphName: stored?.name } },
+        structuredContent: { jsonrpc: "2.0", result: { advice, requestMode: resolvedMode, optimize: resolvedOptimize, graphName: stored?.name || graph_name } },
         content: [{ type: "text" as const, text: `${ctxNote}\n\n${advice}` }],
       };
     } catch (err: any) {
@@ -288,7 +358,6 @@ export function createServer(): McpServer {
     const apiUrl = api_url || process.env.INFRANODUS_API_URL || DEFAULT_API_URL;
     if (!apiKey) return { isError: true, content: [{ type: "text" as const, text: "API key required." }] };
 
-    // Get text from store if not provided
     let searchText = text || "";
     if (!searchText) {
       const stored = graph_name ? graphStore.get(graph_name) : getLatestGraph();
@@ -391,7 +460,7 @@ export function createServer(): McpServer {
       neighbors: neighbors.sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0)),
     };
 
-    const text =
+    const detailText =
       `Node: ${detail.label}\n` +
       `Cluster: ${detail.community} (${detail.clusterWords.slice(0, 5).join(', ')})\n` +
       `Betweenness centrality: ${detail.betweenness.toFixed(4)}\n` +
@@ -401,7 +470,7 @@ export function createServer(): McpServer {
 
     return {
       structuredContent: { jsonrpc: "2.0", result: detail },
-      content: [{ type: "text" as const, text }],
+      content: [{ type: "text" as const, text: detailText }],
     };
   });
 
@@ -409,7 +478,7 @@ export function createServer(): McpServer {
   // compare-graphs: structural comparison of two analyzed graphs
   // ══════════════════════════════════════════════════════════════════════════
   registerAppTool(server, "compare-graphs", {
-    description: "Compare two previously-analyzed graphs to find shared concepts, unique concepts, and structural differences.",
+    description: "Compare two previously-analyzed graphs to find shared concepts, unique concepts, structural differences, and cluster-level comparison.",
     inputSchema: {
       graph_a: z.string().describe("Name of first graph"),
       graph_b: z.string().describe("Name of second graph"),
@@ -428,6 +497,27 @@ export function createServer(): McpServer {
     const onlyA = [...labelsA].filter(l => !labelsB.has(l));
     const onlyB = [...labelsB].filter(l => !labelsA.has(l));
 
+    // ── Cluster-level comparison ──
+    const clustersA: any[] = a.result.topClusters || [];
+    const clustersB: any[] = b.result.topClusters || [];
+
+    const clusterComparison = clustersA.map((ca: any) => {
+      const wordsA = new Set((ca.words || []).map((w: string) => w.toLowerCase()));
+      let bestMatch: any = null;
+      let bestOverlap = 0;
+      clustersB.forEach((cb: any) => {
+        const wordsB = (cb.words || []).map((w: string) => w.toLowerCase());
+        const overlap = wordsB.filter((w: string) => wordsA.has(w)).length;
+        if (overlap > bestOverlap) { bestOverlap = overlap; bestMatch = cb; }
+      });
+      return {
+        clusterA: ca.words?.slice(0, 3) || [],
+        clusterB: bestMatch?.words?.slice(0, 3) || [],
+        sharedWords: bestOverlap,
+        totalWordsA: ca.words?.length || 0,
+      };
+    });
+
     const comparison = {
       graphA: { name: graph_a, nodes: labelsA.size, clusters: a.result.clusterCount, modularity: a.result.modularity },
       graphB: { name: graph_b, nodes: labelsB.size, clusters: b.result.clusterCount, modularity: b.result.modularity },
@@ -435,20 +525,27 @@ export function createServer(): McpServer {
       uniqueToA: onlyA,
       uniqueToB: onlyB,
       overlapRatio: shared.length / Math.max(1, new Set([...labelsA, ...labelsB]).size),
+      clusterComparison,
     };
 
-    const text =
+    const clusterCompText = clusterComparison
+      .filter((c: any) => c.sharedWords > 0)
+      .map((c: any) => `  [${c.clusterA.join(', ')}] ↔ [${c.clusterB.join(', ')}] (${c.sharedWords} shared)`)
+      .join("\n");
+
+    const compText =
       `Graph comparison: "${graph_a}" vs "${graph_b}"\n\n` +
-      `${graph_a}: ${labelsA.size} nodes, ${a.result.clusterCount} clusters\n` +
-      `${graph_b}: ${labelsB.size} nodes, ${b.result.clusterCount} clusters\n\n` +
+      `${graph_a}: ${labelsA.size} nodes, ${a.result.clusterCount} clusters, modularity: ${a.result.modularity}\n` +
+      `${graph_b}: ${labelsB.size} nodes, ${b.result.clusterCount} clusters, modularity: ${b.result.modularity}\n\n` +
       `Shared concepts (${shared.length}): ${shared.slice(0, 20).join(', ')}\n\n` +
       `Only in ${graph_a} (${onlyA.length}): ${onlyA.slice(0, 15).join(', ')}\n\n` +
       `Only in ${graph_b} (${onlyB.length}): ${onlyB.slice(0, 15).join(', ')}\n\n` +
-      `Overlap: ${(comparison.overlapRatio * 100).toFixed(1)}%`;
+      `Overlap: ${(comparison.overlapRatio * 100).toFixed(1)}%` +
+      (clusterCompText ? `\n\nCluster matches:\n${clusterCompText}` : '');
 
     return {
       structuredContent: { jsonrpc: "2.0", result: comparison },
-      content: [{ type: "text" as const, text }],
+      content: [{ type: "text" as const, text: compText }],
     };
   });
 
@@ -494,10 +591,10 @@ export function createServer(): McpServer {
         const lines = ['graph LR'];
         const seen = new Set<string>();
         edges.forEach((e: any) => {
-          const a = nodes[e.source]?.label, b = nodes[e.target]?.label;
-          if (a && b) {
-            const key = `${a}-${b}`;
-            if (!seen.has(key)) { seen.add(key); lines.push(`  ${a.replace(/\s/g,'_')} --> ${b.replace(/\s/g,'_')}`); }
+          const sa = nodes[e.source]?.label, sb = nodes[e.target]?.label;
+          if (sa && sb) {
+            const key = `${sa}-${sb}`;
+            if (!seen.has(key)) { seen.add(key); lines.push(`  ${sa.replace(/\s/g,'_')} --> ${sb.replace(/\s/g,'_')}`); }
           }
         });
         output = lines.join('\n');
@@ -506,8 +603,8 @@ export function createServer(): McpServer {
       case "csv": {
         const lines = ['source,target,weight,source_cluster,target_cluster'];
         edges.forEach((e: any) => {
-          const a = nodes[e.source], b = nodes[e.target];
-          if (a && b) lines.push(`"${a.label}","${b.label}",${e.weight},${a.community},${b.community}`);
+          const sa = nodes[e.source], sb = nodes[e.target];
+          if (sa && sb) lines.push(`"${sa.label}","${sb.label}",${e.weight},${sa.community},${sb.community}`);
         });
         output = lines.join('\n');
         break;
@@ -521,30 +618,138 @@ export function createServer(): McpServer {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // list-graphs: list in-memory analyzed graphs
+  // list-graphs: list graphs from InfraNodus API + in-memory session
   // ══════════════════════════════════════════════════════════════════════════
   registerAppTool(server, "list-graphs", {
-    description: "List all graphs analyzed in this session. Graphs are stored in memory and persist across tool calls within the same MCP session.",
-    inputSchema: {},
+    description: "List graphs from InfraNodus (saved on server) and/or from the current session (in-memory). Uses the /api/v1/listGraphs API endpoint with optional filtering.",
+    inputSchema: {
+      query: z.string().optional().describe("Filter graphs by name/description"),
+      type: z.string().optional().describe("Filter by context type"),
+      favorite: z.boolean().optional().describe("Filter by favorite status"),
+      session_only: z.boolean().optional().describe("Only list in-memory session graphs (skip API call)"),
+      api_key: z.string().optional(),
+      api_url: z.string().optional(),
+    },
     _meta: { ui: { resourceUri: VIEW_URI } },
-  }, async () => {
-    const graphs = [...graphStore.values()].map(g => ({
-      name: g.name,
-      nodeCount: g.result?.nodeCount ?? 0,
-      edgeCount: g.result?.edgeCount ?? 0,
-      clusterCount: g.result?.clusterCount ?? 0,
-      createdAt: g.createdAt,
+  }, async ({ query, type, favorite, session_only, api_key, api_url }) => {
+    const sessionGraphs = [...graphStore.values()].map(sg => ({
+      name: sg.name,
+      source: "session" as const,
+      nodeCount: sg.result?.nodeCount ?? 0,
+      edgeCount: sg.result?.edgeCount ?? 0,
+      clusterCount: sg.result?.clusterCount ?? 0,
+      createdAt: sg.createdAt,
     }));
 
-    const text = graphs.length === 0
-      ? "No graphs in this session. Use analyze-text to create one."
-      : `Graphs in session (${graphs.length}):\n` +
-        graphs.map((g, i) => `  ${i+1}. ${g.name} (${g.nodeCount} nodes, ${g.clusterCount} clusters, ${g.createdAt})`).join("\n");
+    let serverGraphs: any[] = [];
+
+    if (!session_only) {
+      const resolvedApiKey = api_key || process.env.INFRANODUS_API_KEY || "";
+      const resolvedApiUrl = api_url || process.env.INFRANODUS_API_URL || DEFAULT_API_URL;
+
+      if (resolvedApiKey) {
+        try {
+          const reqBody: Record<string, unknown> = {};
+          if (query) reqBody.query = query;
+          if (type) reqBody.type = type;
+          if (favorite !== undefined) reqBody.favorite = favorite;
+
+          const resp = await fetch(`${resolvedApiUrl}/api/v1/listGraphs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${resolvedApiKey}` },
+            body: JSON.stringify(reqBody),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const rawGraphs = Array.isArray(data) ? data : data?.graphs || data?.data || [];
+            serverGraphs = rawGraphs.map((sg: any) => ({
+              id: sg.id,
+              name: sg.contextName || sg.name,
+              source: "server" as const,
+              contextType: sg.contextType,
+              createdAt: sg.createdAt,
+              description: sg.description,
+              isFavorite: sg.isFavorite,
+            }));
+          }
+        } catch (_err) {
+          // Silently fall back to session-only
+        }
+      }
+    }
+
+    const allGraphs = [...sessionGraphs, ...serverGraphs];
+
+    let listText = "";
+    if (allGraphs.length === 0) {
+      listText = "No graphs found. Use analyze-text to create one.";
+    } else {
+      listText = `Graphs (${allGraphs.length}):`;
+      if (sessionGraphs.length > 0) {
+        listText += "\n\n── Session ──\n" +
+          sessionGraphs.map((sg, i) => `  ${i+1}. ${sg.name} (${sg.nodeCount} nodes, ${sg.clusterCount} clusters, ${sg.createdAt})`).join("\n");
+      }
+      if (serverGraphs.length > 0) {
+        listText += "\n\n── Server ──\n" +
+          serverGraphs.map((sg: any, i: number) => `  ${i+1}. ${sg.name}${sg.contextType ? ` [${sg.contextType}]` : ''}${sg.isFavorite ? ' ★' : ''} (${sg.createdAt || '?'})`).join("\n");
+      }
+    }
 
     return {
-      structuredContent: { jsonrpc: "2.0", result: { graphs, count: graphs.length } },
-      content: [{ type: "text" as const, text }],
+      structuredContent: { jsonrpc: "2.0", result: { sessionGraphs, serverGraphs, totalCount: allGraphs.length } },
+      content: [{ type: "text" as const, text: listText }],
     };
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // search-graphs: search across saved graphs on the server
+  // ══════════════════════════════════════════════════════════════════════════
+  registerAppTool(server, "search-graphs", {
+    description: "Search across saved InfraNodus graphs on the server. Finds graphs and nodes matching the query.",
+    inputSchema: {
+      query: z.string().describe("Search query"),
+      contextNames: z.array(z.string()).optional().describe("Limit search to specific graph names"),
+      maxNodes: z.number().optional().describe("Maximum nodes to return (default: 20)"),
+      api_key: z.string().optional(),
+      api_url: z.string().optional(),
+    },
+    _meta: { ui: { resourceUri: VIEW_URI } },
+  }, async ({ query, contextNames, maxNodes, api_key, api_url }) => {
+    const apiKey = api_key || process.env.INFRANODUS_API_KEY || "";
+    const apiUrl = api_url || process.env.INFRANODUS_API_URL || DEFAULT_API_URL;
+    if (!apiKey) return { isError: true, content: [{ type: "text" as const, text: "API key required." }] };
+
+    try {
+      const reqBody: Record<string, unknown> = { query };
+      if (contextNames?.length) reqBody.contextNames = contextNames;
+      if (maxNodes) reqBody.maxNodes = maxNodes;
+
+      const resp = await fetch(`${apiUrl}/api/v1/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(reqBody),
+      });
+      if (!resp.ok) {
+        const errBody = await resp.text().catch(() => "");
+        throw new Error(`API ${resp.status}: ${errBody.slice(0, 200)}`);
+      }
+      const data = await resp.json();
+      const results = Array.isArray(data) ? data : data?.results || data?.data || [];
+
+      const searchResultText = results.length === 0
+        ? `Search "${query}": no results found across saved graphs.`
+        : `Search "${query}": ${results.length} results\n` +
+          results.slice(0, maxNodes || 20).map((r: any, i: number) =>
+            `  ${i+1}. ${r.contextName || r.graph || '?'}: ${r.nodeName || r.content || r.text || JSON.stringify(r).slice(0, 100)}`
+          ).join("\n");
+
+      return {
+        structuredContent: { jsonrpc: "2.0", result: { query, results, count: results.length } },
+        content: [{ type: "text" as const, text: searchResultText }],
+      };
+    } catch (err: any) {
+      return { isError: true, content: [{ type: "text" as const, text: `Error: ${err.message}` }] };
+    }
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -563,7 +768,6 @@ export function createServer(): McpServer {
     const stored = graph_name ? graphStore.get(graph_name) : getLatestGraph();
     if (!stored) return { isError: true, content: [{ type: "text" as const, text: "No graph to add to. Run analyze-text first." }] };
 
-    // Combine the original text with the new text
     const combinedText = stored.text + "\n\n" + text;
     const apiKey = api_key || process.env.INFRANODUS_API_KEY || "";
     const apiUrl = api_url || process.env.INFRANODUS_API_URL || DEFAULT_API_URL;
@@ -581,10 +785,8 @@ export function createServer(): McpServer {
       const attr = g?.attributes || {};
       const rawNodes = g?.nodes || [];
       const rawEdges = g?.edges || [];
-
       const prevNodeCount = stored.result?.nodeCount || 0;
 
-      // Reparse (same logic as analyze-text)
       const topClusters = (attr.top_clusters || []).map((c: any) => ({
         id: parseInt(c.community ?? 0),
         words: c.nodes?.map((n: any) => n.nodeName) || [],
@@ -594,10 +796,12 @@ export function createServer(): McpServer {
       const gaps = rawGaps.map((gap: any) => {
         const fromNodes = (gap.from?.nodes || []).sort((a: any, b: any) => (b.bc || 0) - (a.bc || 0));
         const toNodes = (gap.to?.nodes || []).sort((a: any, b: any) => (b.bc || 0) - (a.bc || 0));
-        return { source: fromNodes[0]?.nodeName || '?', target: toNodes[0]?.nodeName || '?',
+        return {
+          source: fromNodes[0]?.nodeName || '?', target: toNodes[0]?.nodeName || '?',
           sourceCluster: parseInt(gap.from?.community ?? 0), targetCluster: parseInt(gap.to?.community ?? 0),
           sourceWords: fromNodes.map((n: any) => n.nodeName), targetWords: toNodes.map((n: any) => n.nodeName),
-          distance: gap.distance, weightedDistance: gap.distanceWeighedBySize };
+          distance: gap.distance, weightedDistance: gap.distanceWeighedBySize,
+        };
       });
       const graphNodes = rawNodes.map((n: any) => ({
         id: n.key || n.id, label: n.key || n.attributes?.label || n.id,
