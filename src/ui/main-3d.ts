@@ -3,10 +3,10 @@ import * as THREE from "three";
 import { mcp } from "./host.js";
 
 // ── Community color palette (oklch-inspired hex fallbacks) ──────────────────
+// Cluster palette — oklch-derived hex (matched chroma/lightness)
 const COLORS = [
-  "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#06b6d4",
-  "#8b5cf6", "#ef4444", "#84cc16", "#f97316", "#14b8a6",
-  "#a855f7", "#3b82f6",
+  "#e08a3e", "#4db8c7", "#a07de0", "#7ec458", "#d06da0", "#5ea0e0",
+  "#ef4444", "#fbbf24", "#14b8a6", "#f472b6", "#8b5cf6", "#84cc16",
 ];
 
 const BG_COLOR = "#0f1117";

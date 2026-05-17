@@ -3,6 +3,7 @@ import { registerGraphTools } from "./tools/graph.js";
 import { registerAnalysisTools } from "./tools/analysis.js";
 import { registerSearchTools } from "./tools/search.js";
 import { registerSettingsTools } from "./tools/settings.js";
+import { registerPrompts } from "./prompts.js";
 import { registerGraphResource } from "./resources/graph-ui.js";
 
 export function createServer(): McpServer {
@@ -15,6 +16,7 @@ export function createServer(): McpServer {
   registerAnalysisTools(server);
   registerSearchTools(server);
   registerSettingsTools(server);
+  registerPrompts(server);
   registerGraphResource(server);
 
   return server;
