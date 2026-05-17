@@ -1,6 +1,7 @@
 import Graph from "graphology";
 import Sigma from "sigma";
 import forceAtlas2 from "graphology-layout-forceatlas2";
+import { mcp } from "./host.js";
 
 // ── Community color palette (oklch-inspired hex fallbacks) ──────────────────
 const COLORS = [
@@ -44,7 +45,6 @@ interface ParsedGraphData {
 // ── State ───────────────────────────────────────────────────────────────────
 let sigmaInstance: Sigma | null = null;
 let graphInstance: Graph | null = null;
-const isMcpApp = window.location.origin === "null";
 
 // ── Elements ────────────────────────────────────────────────────────────────
 const $ = (s: string) => document.getElementById(s)!;
@@ -294,55 +294,19 @@ function handleData(raw: any) {
   renderGraph(data);
 }
 
-// ── MCP App message handling ────────────────────────────────────────────────
-// Always listen for messages (works in MCP App iframe and standalone testing)
-window.addEventListener("message", (event) => {
-    const msg = event.data;
-
-    // JSON-RPC 2.0 from MCP host
-    if (msg?.jsonrpc === "2.0") {
-      if (msg.method === "notifications/tool_result") {
-        try {
-          const content = msg.params?.content;
-          const text = typeof content === "string" ? content : content?.text;
-          if (text) handleData(JSON.parse(text));
-        } catch (e) {
-          console.error("Failed to parse tool result:", e);
-        }
-      }
-      if (msg.method === "notifications/host_context_changed") {
-        applyHostStyles(msg.params);
-      }
+// ── MCP host channel (handles postMessage, __mcpHost, and standalone) ───────
+mcp.on("toolresult", (data) => handleData(data));
+mcp.on("contextchanged", (params) => {
+  if (params?.styles) {
+    const root = document.documentElement;
+    for (const [key, value] of Object.entries(params.styles as Record<string, string>)) {
+      root.style.setProperty(key, value);
     }
-
-    // Simple message format (direct data pass)
-    if (msg?.type === "tool_result" && msg.content) {
-      try {
-        handleData(typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content);
-      } catch (e) {
-        console.error("Failed to parse direct tool result:", e);
-      }
-    }
+  }
 });
 
-if (isMcpApp) {
-  // Signal ready to host
-  window.parent.postMessage(
-    { jsonrpc: "2.0", method: "notifications/ready", params: {} },
-    "*"
-  );
-}
-
-function applyHostStyles(params: { styles?: Record<string, string> }) {
-  if (!params.styles) return;
-  const root = document.documentElement;
-  for (const [key, value] of Object.entries(params.styles)) {
-    root.style.setProperty(key, value);
-  }
-}
-
 // ── Standalone mode ─────────────────────────────────────────────────────────
-if (!isMcpApp) {
+if (mcp.standalone) {
   const params = new URLSearchParams(window.location.search);
   const dataUrl = params.get("data");
   if (dataUrl) {

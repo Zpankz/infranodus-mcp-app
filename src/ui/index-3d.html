@@ -9,18 +9,36 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-primary: oklch(0.13 0.02 270);
-      --bg-secondary: oklch(0.16 0.02 270);
-      --bg-surface: oklch(0.19 0.015 270);
-      --text-primary: oklch(0.92 0.01 270);
-      --text-secondary: oklch(0.62 0.02 270);
-      --text-muted: oklch(0.45 0.02 270);
-      --accent: oklch(0.63 0.24 275);
-      --accent-dim: oklch(0.63 0.24 275 / 0.15);
-      --border: oklch(1 0 0 / 0.06);
-      --radius: 8px;
-      --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
-      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+      /* MCP host tokens with fallbacks — apps/2026-01-26 spec */
+      --host-bg:       var(--color-background-primary,   oklch(0.135 0.006 250));
+      --host-bg-2:     var(--color-background-secondary, oklch(0.165 0.006 250));
+      --host-bg-3:     var(--color-background-tertiary,  oklch(0.195 0.006 250));
+      --host-fg:       var(--color-text-primary,         oklch(0.965 0.003 250));
+      --host-fg-2:     var(--color-text-secondary,       oklch(0.74  0.005 250));
+      --host-fg-3:     var(--color-text-tertiary,        oklch(0.56  0.006 250));
+      --host-border:   var(--color-border-primary,       oklch(0.28  0.006 250));
+      --host-border-2: var(--color-border-secondary,     oklch(0.235 0.006 250));
+
+      --font-ui:   var(--font-sans, 'Inter', -apple-system, system-ui, sans-serif);
+      --font-mono: var(--font-mono, 'JetBrains Mono', 'SF Mono', monospace);
+
+      /* Brand accent */
+      --in-accent:      oklch(0.74 0.155 52);
+      --in-accent-soft: oklch(0.74 0.155 52 / 0.12);
+      --in-accent-line: oklch(0.74 0.155 52 / 0.32);
+
+      /* Cluster palette */
+      --c-orange:  oklch(0.74 0.155 52);
+      --c-cyan:    oklch(0.74 0.13  205);
+      --c-violet:  oklch(0.74 0.14  290);
+      --c-lime:    oklch(0.80 0.14  140);
+      --c-magenta: oklch(0.74 0.16  340);
+      --c-blue:    oklch(0.74 0.13  240);
+
+      /* Lines & radii */
+      --line:   1px solid var(--host-border);
+      --line-2: 1px solid var(--host-border-2);
+      --r-xs: 2px; --r-sm: 4px; --r-md: 6px; --r-lg: 10px;
     }
 
     * {
@@ -36,9 +54,9 @@
     }
 
     body {
-      font-family: var(--font-sans);
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      font-family: var(--font-ui);
+      background: var(--host-bg);
+      color: var(--host-fg);
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -54,8 +72,8 @@
     /* Header */
     header {
       height: 44px;
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border);
+      background: var(--host-bg-2);
+      border-bottom: 1px solid var(--host-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -72,26 +90,26 @@
     .logo {
       width: 24px;
       height: 24px;
-      background: var(--accent);
+      background: var(--in-accent);
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 600;
       font-size: 14px;
-      color: var(--bg-primary);
+      color: var(--host-bg);
     }
 
     #graph-title {
       font-size: 14px;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--host-fg);
     }
 
     #graph-stats {
       font-family: var(--font-mono);
       font-size: 12px;
-      color: var(--text-muted);
+      color: var(--host-fg-3);
     }
 
     /* Main Layout */
@@ -123,34 +141,34 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
+      background: var(--host-bg-3);
+      border: 1px solid var(--host-border);
       border-radius: 6px;
       padding: 2px;
       height: 32px;
     }
 
     #dim-toggle button {
-      font-family: var(--font-sans);
+      font-family: var(--font-ui);
       font-size: 12px;
       font-weight: 500;
       padding: 4px 12px;
       border: none;
       border-radius: 4px;
       background: transparent;
-      color: var(--text-muted);
+      color: var(--host-fg-3);
       cursor: pointer;
       transition: all 0.15s ease;
       height: 26px;
     }
 
     #dim-toggle button:hover {
-      color: var(--text-secondary);
+      color: var(--host-fg-2);
     }
 
     #dim-toggle button.active {
-      background: var(--accent);
-      color: var(--bg-primary);
+      background: var(--in-accent);
+      color: var(--host-bg);
     }
 
     /* Welcome State */
@@ -163,7 +181,7 @@
       flex-direction: column;
       gap: 12px;
       z-index: 10;
-      background: var(--bg-primary);
+      background: var(--host-bg);
     }
 
     #welcome.hidden {
@@ -174,7 +192,7 @@
       width: 64px;
       height: 64px;
       border-radius: 12px;
-      background: var(--accent-dim);
+      background: var(--in-accent-soft);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -183,7 +201,7 @@
 
     .welcome-message {
       font-size: 14px;
-      color: var(--text-secondary);
+      color: var(--host-fg-2);
       text-align: center;
     }
 
@@ -197,7 +215,7 @@
       flex-direction: column;
       gap: 12px;
       z-index: 20;
-      background: var(--bg-primary);
+      background: var(--host-bg);
     }
 
     #loading.hidden {
@@ -207,8 +225,8 @@
     .spinner {
       width: 40px;
       height: 40px;
-      border: 3px solid var(--bg-surface);
-      border-top-color: var(--accent);
+      border: 3px solid var(--host-bg-3);
+      border-top-color: var(--in-accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -219,15 +237,15 @@
 
     .loading-text {
       font-size: 13px;
-      color: var(--text-muted);
+      color: var(--host-fg-3);
     }
 
     /* Tooltip */
     #tooltip {
       position: absolute;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      background: var(--host-bg-2);
+      border: 1px solid var(--host-border);
+      border-radius: var(--r-md);
       padding: 12px;
       pointer-events: none;
       z-index: 1000;
@@ -244,27 +262,27 @@
     .tooltip-label {
       font-size: 13px;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--host-fg);
       margin-bottom: 6px;
     }
 
     .tooltip-stat {
       font-family: var(--font-mono);
       font-size: 11px;
-      color: var(--text-secondary);
+      color: var(--host-fg-2);
       display: flex;
       justify-content: space-between;
       margin-top: 4px;
     }
 
     .tooltip-stat-label {
-      color: var(--text-muted);
+      color: var(--host-fg-3);
     }
 
     /* Sidebar */
     aside {
-      background: var(--bg-secondary);
-      border-left: 1px solid var(--border);
+      background: var(--host-bg-2);
+      border-left: 1px solid var(--host-border);
       overflow-y: auto;
       overflow-x: hidden;
     }
@@ -278,7 +296,7 @@
     }
 
     aside::-webkit-scrollbar-thumb {
-      background: var(--bg-surface);
+      background: var(--host-bg-3);
       border-radius: 4px;
     }
 
@@ -288,7 +306,7 @@
 
     .sidebar-section {
       padding: 20px 16px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--host-border);
     }
 
     .section-title {
@@ -296,7 +314,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--text-muted);
+      color: var(--host-fg-3);
       margin-bottom: 12px;
     }
 
@@ -308,15 +326,15 @@
     }
 
     .stat-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
+      background: var(--host-bg-3);
+      border: 1px solid var(--host-border);
       border-radius: 6px;
       padding: 10px;
     }
 
     .stat-label {
       font-size: 11px;
-      color: var(--text-muted);
+      color: var(--host-fg-3);
       margin-bottom: 4px;
     }
 
@@ -324,7 +342,7 @@
       font-family: var(--font-mono);
       font-size: 18px;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--host-fg);
     }
 
     /* Cluster List */
@@ -340,16 +358,16 @@
       align-items: center;
       gap: 8px;
       padding: 8px 10px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
+      background: var(--host-bg-3);
+      border: 1px solid var(--host-border);
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.15s ease;
     }
 
     .cluster-item:hover {
-      background: var(--bg-primary);
-      border-color: var(--accent-dim);
+      background: var(--host-bg);
+      border-color: var(--in-accent-soft);
     }
 
     .cluster-color {
@@ -367,7 +385,7 @@
     .cluster-name {
       font-size: 12px;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--host-fg);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -376,7 +394,7 @@
     .cluster-size {
       font-family: var(--font-mono);
       font-size: 10px;
-      color: var(--text-muted);
+      color: var(--host-fg-3);
     }
 
     /* Gap List */
@@ -392,16 +410,16 @@
       align-items: center;
       gap: 8px;
       padding: 8px 10px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
+      background: var(--host-bg-3);
+      border: 1px solid var(--host-border);
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.15s ease;
     }
 
     .gap-item:hover {
-      background: var(--bg-primary);
-      border-color: var(--accent-dim);
+      background: var(--host-bg);
+      border-color: var(--in-accent-soft);
     }
 
     .gap-nodes {
@@ -411,14 +429,14 @@
 
     .gap-label {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--host-fg-2);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .gap-arrow {
-      color: var(--text-muted);
+      color: var(--host-fg-3);
       font-size: 10px;
     }
 
@@ -426,7 +444,7 @@
       font-family: var(--font-mono);
       font-size: 11px;
       font-weight: 500;
-      color: var(--accent);
+      color: var(--in-accent);
       flex-shrink: 0;
     }
 
@@ -435,7 +453,7 @@
       padding: 16px;
       text-align: center;
       font-size: 12px;
-      color: var(--text-muted);
+      color: var(--host-fg-3);
       font-style: italic;
     }
 
