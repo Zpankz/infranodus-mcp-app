@@ -249,30 +249,33 @@ function renderGraph(data){
   const gp=$("#p-graph");
   gp.innerHTML=statsHtml;
   gp.style.overflow="hidden";gp.style.padding="0";
-  // Build node/edge arrays from dotGraph or topClusters
-  const nodes=[],edges=[],nmap={};
-  let ni=0;
-  clusters.forEach(c=>{
-    (c.words||[]).forEach(w=>{
-      if(!(w in nmap)){nmap[w]=ni;nodes.push({id:w,label:w,community:parseInt(c.id)||ni,bc:Math.random()*.05});ni++}
+  // Use raw graph data from server if available, otherwise reconstruct from clusters
+  let nodes=[],edges=[];
+  if(data.graphNodes&&data.graphNodes.length>0){
+    nodes=data.graphNodes;
+    edges=data.graphEdges||[];
+  }else{
+    // Fallback: reconstruct from cluster words
+    const nmap={};let ni=0;
+    clusters.forEach(c=>{
+      (c.words||[]).forEach(w=>{
+        if(!(w in nmap)){nmap[w]=ni;nodes.push({id:w,label:w,community:parseInt(c.id)||ni,bc:Math.random()*.05});ni++}
+      });
+      const ws=c.words||[];
+      for(let i=0;i<ws.length;i++)for(let j=i+1;j<ws.length&&j<i+3;j++){
+        if(nmap[ws[i]]!=null&&nmap[ws[j]]!=null)edges.push({si:nmap[ws[i]],ti:nmap[ws[j]]});
+      }
     });
-    // Connect words within cluster
-    const ws=c.words||[];
-    for(let i=0;i<ws.length;i++)for(let j=i+1;j<ws.length&&j<i+3;j++){
-      if(nmap[ws[i]]!=null&&nmap[ws[j]]!=null)edges.push({si:nmap[ws[i]],ti:nmap[ws[j]]});
-    }
-  });
-  // Connect across clusters via gaps
-  gaps.forEach(g=>{
-    const s=g.source||g[0],t=g.target||g[1];
-    if(s in nmap&&t in nmap)edges.push({si:nmap[s],ti:nmap[t]});
-  });
-  // Bigrams as edges
-  (data.bigrams||[]).forEach(b=>{
-    const parts=b.split(/\s*--?\s*|\s+/);
-    if(parts.length>=2&&parts[0] in nmap&&parts[1] in nmap)
-      edges.push({si:nmap[parts[0]],ti:nmap[parts[1]]});
-  });
+    gaps.forEach(g=>{
+      const s=g.source||g[0],t=g.target||g[1];
+      if(s in nmap&&t in nmap)edges.push({si:nmap[s],ti:nmap[t]});
+    });
+    (data.bigrams||[]).forEach(b=>{
+      const parts=b.split(/\s*--?\s*|\s+/);
+      if(parts.length>=2&&parts[0] in nmap&&parts[1] in nmap)
+        edges.push({si:nmap[parts[0]],ti:nmap[parts[1]]});
+    });
+  }
 
   if(nodes.length>0){
     graph=new ForceGraph(gp,nodes,edges,clusters);
