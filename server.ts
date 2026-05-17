@@ -52,18 +52,46 @@ export function createServer(): McpServer {
 
       const g = data?.entriesAndGraphOfContext?.graph?.graphologyGraph;
       const attr = g?.attributes || {};
+      const rawNodes = g?.nodes || [];
+      const rawEdges = g?.edges || [];
       const topClusters = (attr.top_clusters || []).map((c: any) => ({
         id: c.community, words: c.nodes?.map((n: any) => n.nodeName) || [],
         numberRatio: c.numberRatio, bcRatio: c.bcRatio,
+        topStatementId: c.topStatementId,
       }));
+
+      // Build node array with centrality and community for the view
+      const graphNodes = rawNodes.map((n: any) => ({
+        id: n.key || n.id,
+        label: n.key || n.attributes?.label || n.id,
+        community: n.attributes?.community ?? n.attributes?.cluster ?? 0,
+        bc: n.attributes?.betweenness ?? n.attributes?.bc ?? 0,
+        size: n.attributes?.size ?? n.attributes?.degree ?? 1,
+      }));
+
+      // Build edge array with source/target indices
+      const nodeIndex: Record<string, number> = {};
+      graphNodes.forEach((n: any, i: number) => { nodeIndex[n.id] = i; });
+      const graphEdges = rawEdges
+        .map((e: any) => ({ si: nodeIndex[e.source], ti: nodeIndex[e.target], w: e.attributes?.weight ?? 1 }))
+        .filter((e: any) => e.si != null && e.ti != null);
+
       const result = {
-        contextName: name || "MCP Analysis", topClusters,
-        topNodes: (attr.top_nodes || []).slice(0, 20),
-        gaps: (attr.gaps || []).slice(0, 10),
-        dotGraph: attr.dotGraph || "", bigrams: attr.bigrams || [],
-        nodeCount: (g?.nodes || []).length, edgeCount: (g?.edges || []).length,
+        contextName: name || "MCP Analysis",
+        topClusters,
+        topNodes: (attr.top_nodes || []).slice(0, 30),
+        gaps: (attr.gaps || []).slice(0, 15),
+        dotGraph: attr.dotGraph || "",
+        bigrams: attr.bigrams || [],
+        nodeCount: graphNodes.length,
+        edgeCount: graphEdges.length,
         statementCount: (data?.entriesAndGraphOfContext?.statements || []).length,
-        statements: (data?.entriesAndGraphOfContext?.statements || []).slice(0, 30).map((s: any) => ({ id: s.id, content: s.content, community: s.topStatementCommunity })),
+        statements: (data?.entriesAndGraphOfContext?.statements || []).slice(0, 50).map((s: any) => ({
+          id: s.id, content: s.content, community: s.topStatementCommunity,
+        })),
+        // Raw graph data for the force-directed visualization
+        graphNodes,
+        graphEdges,
       };
 
       const clusterText = topClusters.map((c: any, i: number) => `  ${i+1}. ${c.words.slice(0,5).join(", ")}`).join("\n");
@@ -78,7 +106,7 @@ export function createServer(): McpServer {
     }
   });
 
-  // ── graph-ai-advice: get AI analysis of graph ─────────────────────────────
+  // ── graph-ai-advice ───────────────────────────────────────────────────────
   registerAppTool(server, "graph-ai-advice", {
     description: "Get AI advice about an InfraNodus graph: summaries, gap analysis, research questions.",
     inputSchema: {
@@ -109,7 +137,7 @@ export function createServer(): McpServer {
     }
   });
 
-  // ── semantic-search: find related statements ──────────────────────────────
+  // ── semantic-search ───────────────────────────────────────────────────────
   registerAppTool(server, "semantic-search", {
     description: "Semantic search for related statements within text using InfraNodus AI.",
     inputSchema: {
