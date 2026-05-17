@@ -1,0 +1,222 @@
+/* ============================================================
+   InfraNodus MCP App — Design Tokens
+   Dark-primary, sibling-of InfraNodus. Two directions (A: Topology,
+   B: Atlas) share these tokens; each direction overrides chrome
+   density, radii and graph treatment in component scope.
+   ============================================================ */
+
+:root {
+  /* MCP host tokens with fallbacks — see ext-apps spec */
+  --host-bg:           var(--color-background-primary,   oklch(0.135 0.006 250));
+  --host-bg-2:         var(--color-background-secondary, oklch(0.165 0.006 250));
+  --host-bg-3:         var(--color-background-tertiary,  oklch(0.195 0.006 250));
+  --host-fg:           var(--color-text-primary,         oklch(0.965 0.003 250));
+  --host-fg-2:         var(--color-text-secondary,       oklch(0.74  0.005 250));
+  --host-fg-3:         var(--color-text-tertiary,        oklch(0.56  0.006 250));
+  --host-border:       var(--color-border-primary,       oklch(0.28  0.006 250));
+  --host-border-2:     var(--color-border-secondary,     oklch(0.235 0.006 250));
+  --host-link:         var(--color-link,                 oklch(0.78  0.14  220));
+  --host-accent:       var(--color-accent,               oklch(0.72  0.16  50));
+
+  --font-ui:           var(--font-sans, "Inter", system-ui, sans-serif);
+  --font-mono:         var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+
+  /* Brand — InfraNodus signal orange (original tone, oklch-matched) */
+  --in-accent:         oklch(0.74 0.155 52);
+  --in-accent-soft:    oklch(0.74 0.155 52 / 0.12);
+  --in-accent-line:    oklch(0.74 0.155 52 / 0.32);
+
+  /* Cluster palette — matched chroma 0.14, lightness 0.74 */
+  --c-orange:          oklch(0.74 0.155 52);
+  --c-cyan:            oklch(0.74 0.13  205);
+  --c-violet:          oklch(0.74 0.14  290);
+  --c-lime:            oklch(0.80 0.14  140);
+  --c-magenta:         oklch(0.74 0.16  340);
+  --c-blue:            oklch(0.74 0.13  240);
+
+  /* Status */
+  --ok:                oklch(0.78 0.14 150);
+  --warn:              oklch(0.80 0.14 80);
+  --err:               oklch(0.70 0.18 25);
+
+  /* Radii */
+  --r-xs: 2px; --r-sm: 4px; --r-md: 6px; --r-lg: 10px; --r-xl: 14px; --r-2xl: 20px;
+
+  /* Type scale */
+  --t-12: 12px; --t-13: 13px; --t-14: 14px; --t-16: 16px; --t-20: 20px;
+  --t-28: 28px; --t-36: 36px;
+
+  --line: 1px solid var(--host-border);
+  --line-2: 1px solid var(--host-border-2);
+
+  --shadow-1: 0 1px 0 oklch(1 0 0 / 0.03) inset, 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-2: 0 8px 24px oklch(0 0 0 / 0.4), 0 1px 0 oklch(1 0 0 / 0.04) inset;
+}
+
+/* ============= Page chrome (mockups canvas only) ============= */
+html, body {
+  margin: 0;
+  background: oklch(0.105 0.005 250);
+  color: var(--host-fg);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============= Shared primitives ============= */
+.in-app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--host-bg);
+  color: var(--host-fg);
+  font-family: var(--font-ui);
+  display: grid;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.mono { font-family: var(--font-mono); font-feature-settings: "ss01", "cv11"; }
+.dim  { color: var(--host-fg-2); }
+.dim2 { color: var(--host-fg-3); }
+.kbd  {
+  font-family: var(--font-mono); font-size: 11px; padding: 1px 6px;
+  border: var(--line); border-radius: var(--r-sm);
+  background: var(--host-bg-3); color: var(--host-fg-2);
+}
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px 3px 7px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--host-bg-3); color: var(--host-fg-2);
+  border: var(--line-2);
+}
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--in-accent); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px; border-radius: var(--r-md);
+  background: var(--host-bg-2); color: var(--host-fg);
+  border: var(--line); font: inherit; cursor: pointer;
+  font-size: 13px;
+}
+.btn:hover { background: var(--host-bg-3); }
+.btn.primary {
+  background: var(--in-accent); color: oklch(0.15 0.02 50);
+  border-color: oklch(0.74 0.155 52 / 0.6);
+  font-weight: 600;
+}
+.btn.primary:hover { filter: brightness(1.05); }
+.btn.ghost { background: transparent; }
+
+/* ============= Direction-specific overrides ============= */
+.dir-topology {
+  --r-card: 4px;
+  --gap-tight: 0;
+  font-feature-settings: "ss01";
+}
+.dir-atlas {
+  --r-card: 14px;
+}
+
+/* ============================================================
+   Graph SVG — shared
+   ============================================================ */
+.graph-svg { display: block; width: 100%; height: 100%; }
+.graph-svg .edge { stroke: var(--host-border); stroke-width: 0.6; }
+.graph-svg .edge.hi { stroke: var(--in-accent); stroke-width: 1.1; }
+.graph-svg .node { transition: r 180ms ease, opacity 180ms ease; }
+.graph-svg .label {
+  font-family: var(--font-mono); fill: var(--host-fg-2);
+  font-size: 10px; letter-spacing: 0.02em;
+  paint-order: stroke; stroke: var(--host-bg); stroke-width: 3px;
+}
+.graph-svg .label.hi { fill: var(--host-fg); font-weight: 600; }
+.graph-svg .cluster-hull {
+  fill: var(--in-accent-soft); stroke: var(--in-accent-line);
+  stroke-width: 0.6; stroke-dasharray: 3 4;
+}
+
+/* Atlas direction — softer, glow */
+.dir-atlas .graph-svg .node { filter: drop-shadow(0 0 8px currentColor); }
+.dir-atlas .graph-svg .edge { stroke-opacity: 0.5; }
+.dir-atlas .graph-svg .label { font-family: var(--font-ui); font-size: 11px; }
+
+/* ============================================================
+   Reusable layout primitives
+   ============================================================ */
+.panel {
+  background: var(--host-bg-2);
+  border: var(--line);
+  border-radius: var(--r-card, var(--r-md));
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0;
+}
+.panel-h {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: var(--line-2);
+  font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--host-fg-3);
+}
+.panel-h strong { color: var(--host-fg-2); font-weight: 600; }
+.panel-body { padding: 14px; overflow: auto; flex: 1 1 auto; }
+
+.row { display: flex; align-items: center; gap: 10px; }
+.col { display: flex; flex-direction: column; }
+.divider-h { height: 1px; background: var(--host-border-2); margin: 12px 0; }
+
+/* Topbar (app chrome) */
+.appbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: var(--line);
+  background: var(--host-bg);
+  position: relative; z-index: 2;
+}
+.appbar .logo {
+  width: 22px; height: 22px; border-radius: 5px;
+  background:
+    radial-gradient(circle at 30% 30%, var(--in-accent), transparent 50%),
+    radial-gradient(circle at 70% 70%, var(--c-cyan), transparent 55%),
+    var(--host-bg-3);
+  border: var(--line);
+}
+.appbar .title { font-family: var(--font-mono); font-size: 12px; color: var(--host-fg); letter-spacing: 0.04em; }
+.appbar .crumb { color: var(--host-fg-3); font-family: var(--font-mono); font-size: 12px; }
+
+/* Stat tiles */
+.stat {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px; background: var(--host-bg-3);
+  border: var(--line-2); border-radius: var(--r-card, var(--r-sm));
+}
+.stat .num { font-family: var(--font-mono); font-size: 20px; color: var(--host-fg); }
+.stat .lab { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; color: var(--host-fg-3); text-transform: uppercase; }
+
+/* Code-ish */
+.code {
+  font-family: var(--font-mono); font-size: 12px;
+  background: var(--host-bg-3); border: var(--line-2);
+  border-radius: var(--r-sm); padding: 10px 12px;
+  color: var(--host-fg-2); white-space: pre-wrap;
+}
+.code .k { color: var(--in-accent); }
+.code .s { color: var(--c-lime); }
+.code .n { color: var(--c-cyan); }
+.code .c { color: var(--host-fg-3); }
+
+/* Scrollbar (subtle) */
+.in-app *::-webkit-scrollbar { width: 8px; height: 8px; }
+.in-app *::-webkit-scrollbar-thumb {
+  background: var(--host-border); border-radius: 999px;
+}
+.in-app *::-webkit-scrollbar-track { background: transparent; }
+
+/* ============================================================
+   Tool-card running pulse — used on status dots / accent chips
+   when a tool is mid-execution.
+   ============================================================ */
+@keyframes tc-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.85); }
+}
