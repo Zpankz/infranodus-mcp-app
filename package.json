@@ -1,0 +1,29 @@
+{
+  "name": "/tmp/infranodus-mcp-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && cross-env INPUT=mcp-app.html vite build",
+    "dev": "concurrently --raw \"cross-env NODE_ENV=development INPUT=mcp-app.html vite build --watch\" \"tsx --watch main.ts\"",
+    "serve": "tsx main.ts",
+    "start": "npm run dev"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "latest",
+    "@modelcontextprotocol/sdk": "latest",
+    "cors": "latest",
+    "express": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "vite": "latest",
+    "vite-plugin-singlefile": "latest",
+    "concurrently": "latest",
+    "cross-env": "latest",
+    "tsx": "latest",
+    "@types/node": "latest",
+    "@types/express": "latest",
+    "@types/cors": "latest"
+  }
+}

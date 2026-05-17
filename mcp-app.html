@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="color-scheme" content="light dark">
+  <style>
+    :root { --bg: #fff; --fg: #1a1a2e; --surface: #f0f0f5; --border: #ddd; --accent: #4361ee; --gap: #e63946; --muted: #666; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0f0f23; --fg: #e0e0e0; --surface: #1a1a2e; --border: #333; --accent: #7b9ef5; --gap: #ff6b6b; --muted: #999; }
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { font-family: var(--mcp-font-family, system-ui, -apple-system, sans-serif); background: transparent; color: var(--fg); }
+    body { padding: 16px; max-width: 900px; }
+
+    .loading { color: var(--muted); padding: 32px; text-align: center; }
+    .error { color: var(--gap); padding: 16px; border: 1px solid var(--gap); border-radius: 8px; }
+
+    h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+    h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .stats { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat { padding: 12px 16px; background: var(--surface); border-radius: 8px; min-width: 100px; }
+    .stat-value { font-size: 24px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .section { margin-bottom: 24px; }
+
+    .clusters { display: flex; flex-direction: column; gap: 8px; }
+    .cluster { padding: 12px 16px; background: var(--surface); border-radius: 8px; border-left: 4px solid var(--accent); }
+    .cluster-words { font-size: 14px; line-height: 1.5; }
+    .cluster-id { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+
+    .gaps { display: flex; flex-direction: column; gap: 6px; }
+    .gap { padding: 10px 14px; background: var(--surface); border-radius: 8px; border-left: 4px solid var(--gap); font-size: 14px; }
+    .gap-arrow { color: var(--gap); font-weight: 600; margin: 0 6px; }
+
+    .top-nodes { display: flex; flex-wrap: wrap; gap: 6px; }
+    .node-chip { padding: 4px 12px; background: var(--surface); border-radius: 16px; font-size: 13px; border: 1px solid var(--border); }
+
+    .statements { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .statement { padding: 10px 14px; background: var(--surface); border-radius: 8px; font-size: 13px; line-height: 1.5; }
+    .statement-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .advice { padding: 16px; background: var(--surface); border-radius: 8px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+    .search-results { display: flex; flex-direction: column; gap: 8px; }
+    .search-result { padding: 12px; background: var(--surface); border-radius: 8px; }
+    .search-result-score { font-size: 11px; color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div id="app"><div class="loading">Waiting for data…</div></div>
+
+  <script type="module">
+    import { App, applyDocumentTheme, applyHostStyleVariables } from "@anthropic-ai/mcp-apps";
+
+    const app = new App({ name: "infranodus", version: "1.0.0" });
+    const el = document.getElementById("app");
+
+    let lastResult = null;
+
+    app.ontoolinput = (params) => {
+      el.innerHTML = '<div class="loading">Analyzing with InfraNodus…</div>';
+    };
+
+    app.ontoolresult = (result) => {
+      const data = result?.structuredContent?.result;
+      if (!data) {
+        el.innerHTML = '<div class="error">No data received</div>';
+        return;
+      }
+      lastResult = data;
+
+      // Route rendering by data shape
+      if (data.topClusters) renderGraph(data);
+      else if (data.advice) renderAdvice(data);
+      else if (data.results) renderSearch(data);
+      else el.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    };
+
+    function renderGraph(data) {
+      const clusters = (data.topClusters || []).map((c, i) => {
+        const hue = (i * 360 / Math.max(data.topClusters.length, 1)) % 360;
+        return `<div class="cluster" style="border-left-color: hsl(${hue}, 65%, 55%)">
+          <div class="cluster-id">Cluster ${c.id} · ${c.words.length} concepts</div>
+          <div class="cluster-words">${c.words.slice(0, 8).map(w =>
+            `<span class="node-chip" style="border-color: hsl(${hue}, 65%, 55%)">${w}</span>`
+          ).join(" ")}</div>
+        </div>`;
+      }).join("");
+
+      const gaps = (data.gaps || []).map(g => {
+        const src = g.source || g[0] || "?";
+        const tgt = g.target || g[1] || "?";
+        return `<div class="gap"><strong>${src}</strong><span class="gap-arrow">↔</span><strong>${tgt}</strong></div>`;
+      }).join("");
+
+      const topNodes = (data.topNodes || []).slice(0, 15).map(n =>
+        `<span class="node-chip">${n}</span>`
+      ).join("");
+
+      const stmts = (data.statements || []).slice(0, 15).map(s =>
+        `<div class="statement">${s.content}<div class="statement-meta">ID ${s.id}${s.community ? ` · Cluster ${s.community}` : ""}</div></div>`
+      ).join("");
+
+      el.innerHTML = `
+        <h2>${data.contextName || "Analysis"}</h2>
+        <div class="stats">
+          <div class="stat"><div class="stat-value">${data.nodeCount || 0}</div><div class="stat-label">Nodes</div></div>
+          <div class="stat"><div class="stat-value">${data.edgeCount || 0}</div><div class="stat-label">Edges</div></div>
+          <div class="stat"><div class="stat-value">${data.topClusters?.length || 0}</div><div class="stat-label">Clusters</div></div>
+          <div class="stat"><div class="stat-value">${data.gaps?.length || 0}</div><div class="stat-label">Gaps</div></div>
+        </div>
+        ${clusters ? `<div class="section"><h3>Topical Clusters</h3><div class="clusters">${clusters}</div></div>` : ""}
+        ${gaps ? `<div class="section"><h3>Structural Gaps</h3><div class="gaps">${gaps}</div></div>` : ""}
+        ${topNodes ? `<div class="section"><h3>Top Concepts</h3><div class="top-nodes">${topNodes}</div></div>` : ""}
+        ${stmts ? `<div class="section"><h3>Statements</h3><div class="statements">${stmts}</div></div>` : ""}
+      `;
+    }
+
+    function renderAdvice(data) {
+      el.innerHTML = `
+        <h2>AI ${(data.mode || "Advice").charAt(0).toUpperCase() + (data.mode || "advice").slice(1)}</h2>
+        <div class="advice">${data.advice}</div>
+      `;
+    }
+
+    function renderSearch(data) {
+      const results = (data.results || []).map((r, i) =>
+        `<div class="search-result">
+          <div>${r.content || r.text || JSON.stringify(r).slice(0, 200)}</div>
+          ${r.score ? `<div class="search-result-score">Score: ${r.score.toFixed(3)}</div>` : ""}
+        </div>`
+      ).join("");
+
+      el.innerHTML = `
+        <h2>Search: "${data.query}"</h2>
+        <div class="stats">
+          <div class="stat"><div class="stat-value">${data.count || 0}</div><div class="stat-label">Results</div></div>
+        </div>
+        <div class="search-results">${results || '<div class="loading">No results</div>'}</div>
+      `;
+    }
+
+    app.onhostcontextchanged = (ctx) => {
+      applyDocumentTheme(ctx);
+      applyHostStyleVariables(ctx);
+    };
+
+    app.onteardown = async () => ({});
+
+    await app.connect();
+  </script>
+</body>
+</html>
